@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -41,12 +42,12 @@ export function Dashboard() {
         <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           {sidebarOpen ? (
             <div className="flex items-center gap-2">
-              <Image src="/Ceva_Logo.png" alt="CEVA Logistics" width={140} height={40} className="h-10 w-auto" />
+              <Image src="/Ceva-Logo.png" alt="CEVA Logistics" width={140} height={40} className="h-10 w-auto" />
             </div>
           ) : (
             <div className="flex items-center justify-center w-full">
               <Image
-                src="/Ceva_Logo.png"
+                src="/Ceva-Logo.png"
                 alt="CEVA Logistics"
                 width={40}
                 height={40}
@@ -188,6 +189,31 @@ function NavItem({
 }
 
 function DashboardOverview() {
+  const [stats, setStats] = useState({ activeVehicles: 0, activeLoads: 0 })
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function fetchStats() {
+      const [vehiclesResult, loadsResult] = await Promise.all([
+        supabase
+          .from("ceva_horses")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "in_use"),
+        supabase
+          .from("ceva_loads")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["assigned", "in_transit"])
+      ])
+
+      setStats({
+        activeVehicles: vehiclesResult.count || 0,
+        activeLoads: loadsResult.count || 0
+      })
+    }
+
+    fetchStats()
+  }, [])
+
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
@@ -198,9 +224,9 @@ function DashboardOverview() {
             <Truck className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">127</div>
+            <div className="text-2xl font-bold text-foreground">{stats.activeVehicles}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-accent">+12%</span> from last month
+              Currently in use
             </p>
           </CardContent>
         </Card>
@@ -211,9 +237,9 @@ function DashboardOverview() {
             <Package className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">384</div>
+            <div className="text-2xl font-bold text-foreground">{stats.activeLoads}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-accent">+8%</span> from last week
+              In transit or assigned
             </p>
           </CardContent>
         </Card>

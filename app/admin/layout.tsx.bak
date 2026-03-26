@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { PortalLayout } from "@/components/portal-layout"
-import { BarChart3, CheckCircle, TrendingUp, ScrollText, Users, Truck } from "lucide-react"
+import { BarChart3, CheckCircle, TrendingUp, ScrollText, Users } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 const allNavItems = [
@@ -22,12 +22,6 @@ const allNavItems = [
     icon: <TrendingUp className="h-5 w-5" />,
     label: "Analytics",
     href: "/admin/analytics",
-    adminOnly: false,
-  },
-  {
-    icon: <Truck className="h-5 w-5" />,
-    label: "Transporters",
-    href: "/admin/transporters",
     adminOnly: false,
   },
   {
@@ -69,7 +63,7 @@ export default function AdminLayout({
     .map(({ icon, label, href }) => ({ icon, label, href }))
 
   return (
-    <PortalLayout portalName="Reports" navItems={navItems}>
+    <PortalLayout portalName="Finance / Admin" navItems={navItems}>
       {children}
     </PortalLayout>
   )

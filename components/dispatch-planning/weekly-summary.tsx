@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { format, addDays } from "date-fns"
+import { format, addDays, getDaysInMonth, startOfMonth } from "date-fns"
 import type { PlanningLoad, PlanningHorse, GridCellKey } from "@/types/planning"
 
 interface WeeklySummaryProps {
@@ -9,6 +9,7 @@ interface WeeklySummaryProps {
   assignedLoads: Map<GridCellKey, PlanningLoad[]>
   weekStart: Date
   gridCols: string
+  viewMode?: "week" | "month"
 }
 
 export const WeeklySummary = React.memo(function WeeklySummary({
@@ -16,6 +17,7 @@ export const WeeklySummary = React.memo(function WeeklySummary({
   assignedLoads,
   weekStart,
   gridCols,
+  viewMode = "week",
 }: WeeklySummaryProps) {
   const summaries = useMemo(() => {
     let grandTotalLoads = 0
@@ -25,8 +27,10 @@ export const WeeklySummary = React.memo(function WeeklySummary({
       let loadCount = 0
       let revenue = 0
 
-      for (let i = 0; i < 7; i++) {
-        const dateStr = format(addDays(weekStart, i), 'yyyy-MM-dd')
+      const numDays = viewMode === "month" ? getDaysInMonth(startOfMonth(weekStart)) : 7
+
+      for (let i = 0; i < numDays; i++) {
+        const dateStr = format(addDays(viewMode === "month" ? startOfMonth(weekStart) : weekStart, i), 'yyyy-MM-dd')
         const cellKey = `${horse.id}:${dateStr}` as GridCellKey
         const cellLoads = assignedLoads.get(cellKey) || []
         loadCount += cellLoads.length
@@ -40,31 +44,37 @@ export const WeeklySummary = React.memo(function WeeklySummary({
     })
 
     return { perVehicle, grandTotalLoads, grandTotalRevenue }
-  }, [horses, assignedLoads, weekStart])
+  }, [horses, assignedLoads, weekStart, viewMode])
 
   return (
     <div
-      className="grid sticky bottom-0 z-10 bg-card border-t-2 border-primary/20"
+      className="grid sticky bottom-0 z-10 bg-muted/50 border-t-2 border-primary shadow-lg"
       style={{ gridTemplateColumns: gridCols }}
     >
-      <div className="sticky left-0 z-20 bg-card border-r border-border p-2">
-        <div className="text-xs font-bold">Totals</div>
-        <div className="text-[10px] text-muted-foreground mt-1">
-          {summaries.grandTotalLoads} loads
+      <div className="sticky left-0 z-20 bg-primary text-primary-foreground border-r border-border p-3">
+        <div className="text-xs font-bold uppercase">Total</div>
+        <div className="text-lg font-bold mt-1">
+          {summaries.grandTotalLoads}
         </div>
-        <div className="text-[10px] font-semibold text-primary">
+        <div className="text-[10px] opacity-90">
+          loads
+        </div>
+        <div className="text-sm font-semibold mt-1">
           R{summaries.grandTotalRevenue.toLocaleString()}
         </div>
       </div>
       {summaries.perVehicle.map((vs) => (
         <div
           key={vs.id}
-          className="border-r border-border p-2"
+          className="border-r border-border p-3 bg-card"
         >
-          <div className="text-xs text-muted-foreground">
-            {vs.loadCount} {vs.loadCount === 1 ? 'load' : 'loads'}
+          <div className="text-sm font-bold text-primary">
+            {vs.loadCount}
           </div>
-          <div className="text-xs font-semibold">
+          <div className="text-[10px] text-muted-foreground">
+            {vs.loadCount === 1 ? 'load' : 'loads'}
+          </div>
+          <div className="text-xs font-semibold mt-1">
             R{vs.revenue.toLocaleString()}
           </div>
         </div>

@@ -14,6 +14,7 @@ import { startOfWeek, addDays, format } from "date-fns"
 import { toast } from "sonner"
 import { Loader2, AlertCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
 import { WeekSelector } from "./dispatch-planning/week-selector"
 import { PlanningFilters } from "./dispatch-planning/planning-filters"
 import { UnassignedLoadsPanel } from "./dispatch-planning/unassigned-loads-panel"
@@ -29,6 +30,9 @@ export function DispatchPlanning() {
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   )
+  const [viewMode, setViewMode] = useState<"week" | "month">("week")
+  const [filterViewMode, setFilterViewMode] = useState<"all" | "customer" | "transporter">("all")
+  const [resourceType, setResourceType] = useState<"horses" | "trailers" | "both">("both")
 
   // Data state
   const [loads, setLoads] = useState<PlanningLoad[]>([])
@@ -139,11 +143,19 @@ export function DispatchPlanning() {
   const assignedLoadsMap = useMemo(() => {
     const map = new Map<GridCellKey, PlanningLoad[]>()
     for (const load of loads) {
-      if (!load.horse_id) continue
-      const key = `${load.horse_id}:${load.pickup_date}` as GridCellKey
-      const existing = map.get(key) || []
-      existing.push(load)
-      map.set(key, existing)
+      // For loads with horses, group by horse + date
+      if (load.horse_id) {
+        const key = `${load.horse_id}:${load.pickup_date}` as GridCellKey
+        const existing = map.get(key) || []
+        existing.push(load)
+        map.set(key, existing)
+      } else {
+        // For loads without horses, group by date only (for timeline view)
+        const key = `no-horse:${load.pickup_date}` as GridCellKey
+        const existing = map.get(key) || []
+        existing.push(load)
+        map.set(key, existing)
+      }
     }
     return map
   }, [loads])
@@ -191,13 +203,40 @@ export function DispatchPlanning() {
     // Determine source key
     const sourceKey = load.horse_id
       ? `${load.horse_id}:${load.pickup_date}`
-      : "unassigned"
+      : load.pickup_date
 
     // Skip if same cell
     if (sourceKey === targetId) return
 
     // Snapshot for rollback
     const previousLoads = [...loads]
+
+    // Check if target is just a date (no horses scenario)
+    if (targetId.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // Just rescheduling to a different date
+      const newDate = targetId
+
+      setLoads((prev) =>
+        prev.map((l) =>
+          l.id === loadId
+            ? { ...l, pickup_date: newDate }
+            : l
+        )
+      )
+
+      const { error } = await supabase
+        .from("ceva_loads")
+        .update({ pickup_date: newDate })
+        .eq("id", loadId)
+
+      if (error) {
+        setLoads(previousLoads)
+        toast.error(`Failed to reschedule load: ${error.message}`)
+      } else {
+        toast.success(`Load rescheduled to ${format(new Date(newDate), 'EEE dd MMM yyyy')}`)
+      }
+      return
+    }
 
     if (targetId === "unassigned") {
       // Unassign the load
@@ -232,6 +271,16 @@ export function DispatchPlanning() {
       const horse = horses.find((h) => h.id === horseId)
       if (!horse) return
 
+      // Auto-assign a trailer from the same transporter if available
+      const availableTrailer = trailers.find(
+        (t) => t.transporter_id === horse.transporter_id
+      )
+
+      // Auto-assign a driver from the same transporter if available
+      const availableDriver = drivers.find(
+        (d) => d.transporter_id === horse.transporter_id && d.status === "active"
+      )
+
       setLoads((prev) =>
         prev.map((l) =>
           l.id === loadId
@@ -239,6 +288,8 @@ export function DispatchPlanning() {
                 ...l,
                 pickup_date: dateString,
                 horse_id: horse.id,
+                trailer_id: availableTrailer?.id || null,
+                driver_id: availableDriver?.id || null,
                 supplier_id: horse.transporter_id,
                 status: "assigned" as const,
                 horse: { registration_number: horse.registration_number },
@@ -253,6 +304,8 @@ export function DispatchPlanning() {
         .update({
           pickup_date: dateString,
           horse_id: horse.id,
+          trailer_id: availableTrailer?.id || null,
+          driver_id: availableDriver?.id || null,
           supplier_id: horse.transporter_id,
           status: "assigned",
         })
@@ -262,12 +315,18 @@ export function DispatchPlanning() {
         setLoads(previousLoads)
         toast.error(`Failed to assign load: ${error.message}`)
       } else {
+        const assignedItems = [
+          horse.registration_number,
+          availableTrailer ? `+ trailer ${availableTrailer.registration_number}` : '',
+          availableDriver ? `+ driver ${availableDriver.first_name} ${availableDriver.last_name}` : ''
+        ].filter(Boolean).join(' ')
+
         toast.success(
-          `Load assigned to ${horse.registration_number} on ${format(new Date(dateString), 'EEE dd MMM')}`
+          `Load assigned to ${assignedItems} on ${format(new Date(dateString), 'EEE dd MMM')}`
         )
       }
     }
-  }, [loads, horses])
+  }, [loads, horses, trailers, drivers, supabase])
 
   // Load click handler
   const handleLoadClick = useCallback((load: PlanningLoad) => {
@@ -327,9 +386,14 @@ export function DispatchPlanning() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)]">
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-4 pb-4 flex-wrap">
-        <WeekSelector currentWeekStart={weekStart} onWeekChange={setWeekStart} />
+      {/* Top bar with view mode selector */}
+      <div className="flex items-center justify-between gap-4 pb-3 flex-wrap">
+        <WeekSelector
+          currentWeekStart={weekStart}
+          onWeekChange={setWeekStart}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
         <PlanningFilters
           clientFilter={clientFilter}
           onClientFilterChange={setClientFilter}
@@ -340,6 +404,69 @@ export function DispatchPlanning() {
           clients={uniqueClients}
           transporters={uniqueTransporters}
         />
+      </div>
+
+      {/* Filter view tabs */}
+      <div className="flex items-center justify-between gap-2 pb-3 border-b">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFilterViewMode("all")}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              filterViewMode === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            All Clients
+          </button>
+          <button
+            onClick={() => setFilterViewMode("customer")}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              filterViewMode === "customer"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            Customers
+          </button>
+          <button
+            onClick={() => setFilterViewMode("transporter")}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              filterViewMode === "transporter"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            Transporters
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">View columns as:</span>
+          <div className="flex items-center gap-1 border rounded-md p-1">
+            <Button
+              variant={resourceType === "both" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setResourceType("both")}
+            >
+              Horse + Trailer
+            </Button>
+            <Button
+              variant={resourceType === "horses" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setResourceType("horses")}
+            >
+              Horses Only
+            </Button>
+            <Button
+              variant={resourceType === "trailers" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setResourceType("trailers")}
+            >
+              Trailers Only
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Main area: unassigned panel + grid */}
@@ -364,6 +491,7 @@ export function DispatchPlanning() {
             horses={filteredHorses}
             assignedLoads={assignedLoadsMap}
             onLoadClick={handleLoadClick}
+            viewMode={viewMode}
           />
         </div>
 

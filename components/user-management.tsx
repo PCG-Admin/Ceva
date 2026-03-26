@@ -37,15 +37,15 @@ interface Profile {
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   dispatcher: "Dispatcher",
-  driver: "Driver",
   client: "Client",
+  driver: "Driver",
 }
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   dispatcher: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  driver: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  client: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  client: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  driver: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
 }
 
 export function UserManagement() {
@@ -327,8 +327,8 @@ export function UserManagement() {
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="dispatcher">Dispatcher</SelectItem>
-                    <SelectItem value="driver">Driver</SelectItem>
                     <SelectItem value="client">Client</SelectItem>
+                    <SelectItem value="driver">Driver</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -407,8 +407,8 @@ export function UserManagement() {
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="dispatcher">Dispatcher</SelectItem>
-                    <SelectItem value="driver">Driver</SelectItem>
                     <SelectItem value="client">Client</SelectItem>
+                    <SelectItem value="driver">Driver</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

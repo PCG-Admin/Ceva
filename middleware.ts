@@ -40,8 +40,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup') ||
     request.nextUrl.pathname.startsWith('/auth') ||
-    request.nextUrl.pathname.startsWith('/api/ctrack/record-positions') ||
-    request.nextUrl.pathname.startsWith('/api/whatsapp')
+    request.nextUrl.pathname.startsWith('/api/ctrack/record-positions')
 
   // Redirect unauthenticated users to login
   if (!user && !isPublicRoute) {
@@ -58,6 +57,75 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
+  }
+
+  // Role-based access control
+  if (user) {
+    const { data: profile } = await supabase
+      .from('ceva_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const userRole = profile?.role
+
+    // Define protected routes by role
+    const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
+    const isTransporterRoute = request.nextUrl.pathname.startsWith('/transporter')
+    const isCustomerRoute = request.nextUrl.pathname.startsWith('/customer')
+    const isClientRoute = request.nextUrl.pathname.startsWith('/client')
+    const isDriverRoute = request.nextUrl.pathname.startsWith('/driver')
+
+    // Redirect clients to their portal if they try to access other areas
+    if (userRole === 'client') {
+      if (!isClientRoute && request.nextUrl.pathname !== '/') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/client'
+        return NextResponse.redirect(url)
+      }
+      // Redirect from home to client portal
+      if (request.nextUrl.pathname === '/') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/client'
+        return NextResponse.redirect(url)
+      }
+    }
+
+    // Redirect drivers to their portal if they try to access other areas
+    if (userRole === 'driver') {
+      if (!isDriverRoute && request.nextUrl.pathname !== '/') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/driver'
+        return NextResponse.redirect(url)
+      }
+      // Redirect from home to driver portal
+      if (request.nextUrl.pathname === '/') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/driver'
+        return NextResponse.redirect(url)
+      }
+    }
+
+    // Prevent non-admin users from accessing admin routes
+    if (isAdminRoute && userRole !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // Redirect staff away from client portal
+    if (isClientRoute && userRole !== 'client') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // Redirect non-drivers away from driver portal
+    if (isDriverRoute && userRole !== 'driver') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

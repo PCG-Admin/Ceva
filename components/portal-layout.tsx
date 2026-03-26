@@ -37,7 +37,7 @@ export function PortalLayout({ children, portalName, navItems }: PortalLayoutPro
           {!collapsed && (
             <Link href="/" className="flex-1">
               <Image
-                src="/Ceva_Logo.png"
+                src="/Ceva-Logo.png"
                 alt="Ceva Logistics"
                 width={180}
                 height={56}

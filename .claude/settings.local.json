@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat \"c:\\Users\\zandi\\Downloads\\Ceva\\app\\admin\\layout.tsx\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

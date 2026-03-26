@@ -45,7 +45,7 @@ function LoginForm() {
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
             <Image
-              src="/Ceva_Logo.png"
+              src="/Ceva-Logo.png"
               alt="CEVA Logistics"
               width={280}
               height={80}

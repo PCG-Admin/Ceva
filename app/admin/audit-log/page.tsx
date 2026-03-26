@@ -10,5 +10,15 @@ export default async function AdminAuditLogPage() {
     redirect('/login')
   }
 
+  const { data: profile } = await supabase
+    .from("ceva_profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (profile?.role !== "admin") {
+    redirect('/admin')
+  }
+
   return <AuditLogView />
 }

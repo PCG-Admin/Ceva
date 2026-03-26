@@ -23,6 +23,7 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<string>('dispatcher')
   const [phone, setPhone] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -42,6 +43,7 @@ export default function SignupPage() {
           full_name: fullName,
           role: role,
           phone: phone,
+          company_name: role === 'client' ? companyName : undefined,
         },
       },
     })
@@ -88,7 +90,7 @@ export default function SignupPage() {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <Image
-              src="/Ceva_Logo.png"
+              src="/Ceva-Logo.png"
               alt="CEVA Logistics"
               width={180}
               height={50}
@@ -135,19 +137,32 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">Account Type</Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select your role" />
+                  <SelectValue placeholder="Select account type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dispatcher">Dispatcher</SelectItem>
-                  <SelectItem value="driver">Driver</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                  <SelectItem value="client">Client</SelectItem>
+                  <SelectItem value="client">Client (Track Shipments)</SelectItem>
+                  <SelectItem value="driver">Driver (Delivery Personnel)</SelectItem>
+                  <SelectItem value="dispatcher">Dispatcher (Staff)</SelectItem>
+                  <SelectItem value="admin">Administrator (Staff)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {role === 'client' && (
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Company Name</Label>
+                <Input
+                  id="companyName"
+                  type="text"
+                  placeholder="Your Company Ltd"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input

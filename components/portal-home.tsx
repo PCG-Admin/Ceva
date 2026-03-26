@@ -33,7 +33,7 @@ const portals = [
     iconColor: "text-secondary",
   },
   {
-    title: "Finance / Admin",
+    title: "Reports",
     description: "Analytics, completed orders, and reporting",
     icon: Package,
     href: "/admin",
@@ -45,7 +45,7 @@ const portals = [
 const statusIcons: Record<string, React.ReactNode> = {
   pending: <Package className="h-4 w-4 text-yellow-500" />,
   assigned: <Truck className="h-4 w-4 text-blue-500" />,
-  "in-transit": <MapPin className="h-4 w-4 text-orange-500" />,
+  in_transit: <MapPin className="h-4 w-4 text-orange-500" />,
   delivered: <CheckCircle className="h-4 w-4 text-accent" />,
   cancelled: <Package className="h-4 w-4 text-destructive" />,
 }
@@ -95,7 +95,7 @@ export function PortalHome() {
 
       if (loads) {
         const active = loads.filter((l) =>
-          ["pending", "assigned", "in-transit"].includes(l.status)
+          ["pending", "assigned", "in_transit"].includes(l.status)
         )
         setActiveLoads(active.length)
 
@@ -129,7 +129,7 @@ export function PortalHome() {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex h-20 items-center justify-between px-6">
           <Image
-            src="/Ceva_Logo.png"
+            src="/Ceva-Logo.png"
             alt="Ceva Logistics"
             width={200}
             height={60}

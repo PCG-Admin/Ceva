@@ -10,6 +10,14 @@ import type {
   TrackedVehicleTrip,
 } from "@/types/ctrack"
 
+import {
+  isCtrackConfigured,
+  getMockVehicles,
+  getMockPositions,
+  getMockTrips,
+  mergeMockVehiclesWithPositions,
+} from "./mock-service"
+
 // ---- Configuration ----
 
 function getConfig() {
@@ -17,13 +25,18 @@ function getConfig() {
   const username = process.env.CTRACK_USERNAME
   const password = process.env.CTRACK_PASSWORD
 
-  if (!apiUrl || !username || !password) {
+  if (!apiUrl || !username || !password || username.trim() === "" || password.trim() === "") {
     throw new Error(
       "Ctrack API configuration missing. Set CTRACK_API_URL, CTRACK_USERNAME, and CTRACK_PASSWORD in .env.local"
     )
   }
 
   return { apiUrl, username, password }
+}
+
+// Check if we should use mock data
+function shouldUseMock(): boolean {
+  return !isCtrackConfigured()
 }
 
 // ---- Token cache (module-level singleton) ----
@@ -119,27 +132,49 @@ async function ctrackFetch<T extends { ErrorCode: number }>(
 // ---- Public API methods ----
 
 export async function getVehicles(): Promise<CtrackVehicleRaw[]> {
-  const data = await ctrackFetch<CtrackGetVehiclesResponse>(
-    (token) => `${getConfig().apiUrl}/REST/Vehicles/${token}/GetVehicles`
-  )
-  return data.VehicleList
+  // Use mock data if CTrack is not configured
+  if (shouldUseMock()) {
+    console.log("[CTrack] Using mock vehicle data (CTrack not configured)")
+    return getMockVehicles()
+  }
+
+  try {
+    const data = await ctrackFetch<CtrackGetVehiclesResponse>(
+      (token) => `${getConfig().apiUrl}/REST/Vehicles/${token}/GetVehicles`
+    )
+    return data.VehicleList
+  } catch (error) {
+    console.error("[CTrack] Failed to fetch vehicles, falling back to mock data:", error)
+    return getMockVehicles()
+  }
 }
 
 export async function getLastPositions(
   nodeIds?: number[]
 ): Promise<CtrackVehiclePositionRaw[]> {
-  let ids = nodeIds
-  if (!ids || ids.length === 0) {
-    const vehicles = await getVehicles()
-    ids = vehicles.map((v) => v.NodeId)
+  // Use mock data if CTrack is not configured
+  if (shouldUseMock()) {
+    console.log("[CTrack] Using mock position data (CTrack not configured)")
+    return getMockPositions(nodeIds)
   }
 
-  const idsParam = ids.join(",")
-  const data = await ctrackFetch<CtrackGetPositionsResponse>(
-    (token) =>
-      `${getConfig().apiUrl}/REST/Vehicles/${token}/GetLastVehiclePositions?svehicleNodeIds=${idsParam}`
-  )
-  return data.LastVehiclePositions ?? []
+  try {
+    let ids = nodeIds
+    if (!ids || ids.length === 0) {
+      const vehicles = await getVehicles()
+      ids = vehicles.map((v) => v.NodeId)
+    }
+
+    const idsParam = ids.join(",")
+    const data = await ctrackFetch<CtrackGetPositionsResponse>(
+      (token) =>
+        `${getConfig().apiUrl}/REST/Vehicles/${token}/GetLastVehiclePositions?svehicleNodeIds=${idsParam}`
+    )
+    return data.LastVehiclePositions ?? []
+  } catch (error) {
+    console.error("[CTrack] Failed to fetch positions, falling back to mock data:", error)
+    return getMockPositions(nodeIds)
+  }
 }
 
 export async function getVehicleTrips(
@@ -147,10 +182,43 @@ export async function getVehicleTrips(
   fromDateTimeUTC: string,
   toDateTimeUTC: string
 ): Promise<CtrackGetTripsResponse> {
-  return ctrackFetch<CtrackGetTripsResponse>(
-    (token) =>
-      `${getConfig().apiUrl}/REST/Vehicles/${token}/GetVehicleTrips?vehicleNodeId=${vehicleNodeId}&fromDateTimeUTC=${fromDateTimeUTC}&toDateTimeUTC=${toDateTimeUTC}`
-  )
+  // Use mock data if CTrack is not configured
+  if (shouldUseMock()) {
+    console.log("[CTrack] Using mock trips data (CTrack not configured)")
+    const trips = getMockTrips(vehicleNodeId, fromDateTimeUTC, toDateTimeUTC)
+    return {
+      ErrorCode: 0,
+      VehicleTrips: trips.map((t) => ({
+        NodeId: t.nodeId,
+        TripStartUTC: t.startTime,
+        TripEndUTC: t.endTime,
+        TripOdo: t.tripOdo,
+        MaxSpeed: t.maxSpeed,
+        DriverName: t.driverName || "",
+      })),
+    }
+  }
+
+  try {
+    return await ctrackFetch<CtrackGetTripsResponse>(
+      (token) =>
+        `${getConfig().apiUrl}/REST/Vehicles/${token}/GetVehicleTrips?vehicleNodeId=${vehicleNodeId}&fromDateTimeUTC=${fromDateTimeUTC}&toDateTimeUTC=${toDateTimeUTC}`
+    )
+  } catch (error) {
+    console.error("[CTrack] Failed to fetch trips, falling back to mock data:", error)
+    const trips = getMockTrips(vehicleNodeId, fromDateTimeUTC, toDateTimeUTC)
+    return {
+      ErrorCode: 0,
+      VehicleTrips: trips.map((t) => ({
+        NodeId: t.nodeId,
+        TripStartUTC: t.startTime,
+        TripEndUTC: t.endTime,
+        TripOdo: t.tripOdo,
+        MaxSpeed: t.maxSpeed,
+        DriverName: t.driverName || "",
+      })),
+    }
+  }
 }
 
 // ---- Normalization ----
