@@ -1267,6 +1267,7 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
       controller: (formData.get("controller") as string) || null,
       passport_number: (formData.get("passportNumber") as string) || null,
       client: clientName,
+      client_id: selectedClientId && selectedClientId !== "none" ? selectedClientId : null,
       client_contact: clientContact || null,
       material: material,
       commodity: material === "citrus" ? "Citrus" : null, // SOW: commodity field
@@ -1483,6 +1484,7 @@ function EditLoadForm({ load, onClose, onSuccess }: { load: Load; onClose: () =>
         loading_number: (formData.get("loadingNumber") as string) || null,
         offloading_number: (formData.get("offloadingNumber") as string) || null,
         client: clientName,
+        client_id: selectedClientId && selectedClientId !== "none" ? selectedClientId : null,
         client_contact: clientContact || null,
         material: material,
         origin: origin,
