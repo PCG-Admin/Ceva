@@ -479,7 +479,8 @@ export function AnalyticsReports() {
 
       const truckMap = new Map<string, { registration: string; km: number; trips: number }>()
       for (const trip of tripData ?? []) {
-        const reg = (trip.horses as { registration_number: string } | null)?.registration_number ?? "Unknown"
+        const horseData = trip.horses
+        const reg = (Array.isArray(horseData) ? horseData[0] : horseData)?.registration_number ?? "Unknown"
         const existing = truckMap.get(reg) ?? { registration: reg, km: 0, trips: 0 }
         existing.km += trip.distance_km ?? 0
         existing.trips += 1

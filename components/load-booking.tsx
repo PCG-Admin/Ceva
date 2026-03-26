@@ -87,6 +87,10 @@ interface Load {
   order_number: string
   loading_number: string | null
   offloading_number: string | null
+  manifest_number: string | null // SOW 3.1.1 - Mandatory on pack
+  rib_code: string | null // SOW 3.1.1 - Remover in Bond Code
+  controller: string | null // SOW 3.1.1 - CEVA controller (e.g., Mahesh)
+  passport_number: string | null // SOW 3.1.1 - Phytosanitary passport (optional)
   client: string
   client_contact: string | null
   origin: string
@@ -128,8 +132,9 @@ interface LoadStats {
   revenue: number
 }
 
-// Material type options
+// Material type options (SOW: Default is Citrus for CEVA module)
 const MATERIAL_TYPES = [
+  { value: "citrus", label: "Citrus" }, // SOW Section 3.1.1 - Default for CEVA
   { value: "coal", label: "Coal" },
   { value: "chrome", label: "Chrome" },
   { value: "manganese", label: "Manganese" },
@@ -253,6 +258,10 @@ export function LoadBooking() {
       client: load.client,
       client_contact: load.client_contact,
       material: load.material,
+      manifest_number: load.manifest_number,
+      rib_code: load.rib_code,
+      controller: load.controller,
+      passport_number: load.passport_number,
       origin: load.origin,
       destination: load.destination,
       origin_lat: load.origin_lat ?? null,
@@ -894,6 +903,50 @@ function LoadFormFields({
         </div>
       </div>
 
+      {/* SOW Section 3.1.1 - Citrus-specific fields */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="manifestNumber">Manifest Number</Label>
+          <Input
+            id="manifestNumber"
+            name="manifestNumber"
+            placeholder="e.g., I325600001NT"
+            defaultValue={defaults?.manifest_number ?? ""}
+          />
+          <p className="text-xs text-muted-foreground">Farm-allocated reference (added when available)</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ribCode">RiB Code</Label>
+          <Input
+            id="ribCode"
+            name="ribCode"
+            placeholder="e.g., 25616711"
+            defaultValue={defaults?.rib_code ?? ""}
+          />
+          <p className="text-xs text-muted-foreground">Remover in Bond code for cross-border loads</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="controller">Controller</Label>
+          <Input
+            id="controller"
+            name="controller"
+            placeholder="e.g., Mahesh"
+            defaultValue={defaults?.controller ?? ""}
+          />
+          <p className="text-xs text-muted-foreground">CEVA controller assigned to this load</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="passportNumber">Passport Number (Optional)</Label>
+        <Input
+          id="passportNumber"
+          name="passportNumber"
+          placeholder="Phytosanitary / export passport number"
+          defaultValue={defaults?.passport_number ?? ""}
+        />
+      </div>
+
       <div className="space-y-2">
         {selectedClient && selectedClient.pickup_addresses.length > 0 && (
           <div className="space-y-1">
@@ -1131,7 +1184,7 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const [driverId, setDriverId] = useState("")
   const [contractId, setContractId] = useState("")
   const [weight, setWeight] = useState("")
-  const [material, setMaterial] = useState("")
+  const [material, setMaterial] = useState("citrus") // SOW: Default to Citrus for CEVA module
   const [origin, setOriginAddress] = useState("")
   const [destination, setDestinationAddress] = useState("")
   const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -1209,9 +1262,14 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
     const { error: insertError } = await supabase.from("ceva_loads").insert({
       loading_number: (formData.get("loadingNumber") as string) || null,
       offloading_number: (formData.get("offloadingNumber") as string) || null,
+      manifest_number: (formData.get("manifestNumber") as string) || null,
+      rib_code: (formData.get("ribCode") as string) || null,
+      controller: (formData.get("controller") as string) || null,
+      passport_number: (formData.get("passportNumber") as string) || null,
       client: clientName,
       client_contact: clientContact || null,
       material: material,
+      commodity: material === "citrus" ? "Citrus" : null, // SOW: commodity field
       origin: origin,
       destination: destination,
       origin_lat: originCoords?.lat ?? null,

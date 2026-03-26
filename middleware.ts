@@ -76,17 +76,13 @@ export async function middleware(request: NextRequest) {
     const isClientRoute = request.nextUrl.pathname.startsWith('/client')
     const isDriverRoute = request.nextUrl.pathname.startsWith('/driver')
 
-    // Redirect clients to their portal if they try to access other areas
+    // Redirect clients to admin dashboard (they see filtered data via RLS)
     if (userRole === 'client') {
-      if (!isClientRoute && request.nextUrl.pathname !== '/') {
+      // Allow clients to access /admin routes (RLS filters their data)
+      // Just redirect from home to citrus dashboard
+      if (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/client') {
         const url = request.nextUrl.clone()
-        url.pathname = '/client'
-        return NextResponse.redirect(url)
-      }
-      // Redirect from home to client portal
-      if (request.nextUrl.pathname === '/') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/client'
+        url.pathname = '/admin/citrus-dashboard'
         return NextResponse.redirect(url)
       }
     }
@@ -106,15 +102,9 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Prevent non-admin users from accessing admin routes
-    if (isAdminRoute && userRole !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
-    }
-
-    // Redirect staff away from client portal
-    if (isClientRoute && userRole !== 'client') {
+    // Allow admin, dispatcher, and client to access admin routes
+    // (RLS will filter data appropriately)
+    if (isAdminRoute && !['admin', 'dispatcher', 'client'].includes(userRole || '')) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)

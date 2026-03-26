@@ -15,9 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Search, Users, Edit, Trash2, Phone, Mail } from "lucide-react"
+import { Plus, Search, Users, Edit, Trash2, Phone, Mail, CheckCircle2, AlertCircle } from "lucide-react"
 import { AddressInput } from "@/components/ui/address-input"
 import type { ClientAddress } from "@/types/location"
+import { createClientWithUser, updateClient } from "@/app/actions/create-client-user"
+import { useToast } from "@/hooks/use-toast"
 
 interface Client {
   id: string
@@ -270,27 +272,36 @@ function AddClientDialog({
     notes: "",
   })
   const [saving, setSaving] = useState(false)
-
-  const supabase = createClient()
+  const { toast } = useToast()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
 
-    const { error } = await supabase.from("ceva_clients").insert({
+    // Use server action to create client with automatic user creation
+    const result = await createClientWithUser({
       name: formData.name,
-      contact_number: formData.contact_number || null,
-      email: formData.email || null,
+      email: formData.email,
+      contact_number: formData.contact_number,
       pickup_addresses: formData.pickup_addresses.filter(a => a.address),
       delivery_addresses: formData.delivery_addresses.filter(a => a.address),
-      notes: formData.notes || null,
+      notes: formData.notes,
     })
 
-    if (error) {
-      console.error("Error creating client:", error)
-    } else {
+    if (result.success) {
+      toast({
+        title: "Client created successfully",
+        description: result.warning || `Login credentials: ${formData.email} / CevaCitrus2026!`,
+        variant: result.warning ? "default" : "default",
+      })
       setFormData({ name: "", contact_number: "", email: "", pickup_addresses: [], delivery_addresses: [], notes: "" })
       onSuccess()
+    } else {
+      toast({
+        title: "Error creating client",
+        description: result.error,
+        variant: "destructive",
+      })
     }
     setSaving(false)
   }
@@ -387,29 +398,33 @@ function EditClientDialog({
     notes: client.notes || "",
   })
   const [saving, setSaving] = useState(false)
-
-  const supabase = createClient()
+  const { toast } = useToast()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
 
-    const { error } = await supabase
-      .from("ceva_clients")
-      .update({
-        name: formData.name,
-        contact_number: formData.contact_number || null,
-        email: formData.email || null,
-        pickup_addresses: formData.pickup_addresses.filter(a => a.address),
-        delivery_addresses: formData.delivery_addresses.filter(a => a.address),
-        notes: formData.notes || null,
-      })
-      .eq("id", client.id)
+    const result = await updateClient(client.id, {
+      name: formData.name,
+      email: formData.email,
+      contact_number: formData.contact_number,
+      pickup_addresses: formData.pickup_addresses.filter(a => a.address),
+      delivery_addresses: formData.delivery_addresses.filter(a => a.address),
+      notes: formData.notes,
+    })
 
-    if (error) {
-      console.error("Error updating client:", error)
-    } else {
+    if (result.success) {
+      toast({
+        title: "Client updated successfully",
+        description: result.message,
+      })
       onSuccess()
+    } else {
+      toast({
+        title: "Error updating client",
+        description: result.error,
+        variant: "destructive",
+      })
     }
     setSaving(false)
   }
