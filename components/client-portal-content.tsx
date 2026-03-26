@@ -78,10 +78,22 @@ export function ClientPortalContent({ user, profile, clientDetails }: ClientPort
   const fetchLoads = async () => {
     setLoading(true)
     try {
-      // Fetch loads using the client_load_summary view
+      // Fetch ALL loads directly from ceva_loads table (temporary fix)
       const { data, error } = await supabase
-        .from('client_load_summary')
-        .select('*')
+        .from('ceva_loads')
+        .select(`
+          id,
+          load_number,
+          status,
+          origin,
+          destination,
+          pickup_date,
+          delivery_date,
+          rate,
+          created_at,
+          horse:ceva_horses(registration_number),
+          driver:ceva_drivers(first_name, last_name, contact_phone)
+        `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -94,10 +106,10 @@ export function ClientPortalContent({ user, profile, clientDetails }: ClientPort
         destination: load.destination,
         pickup_date: load.pickup_date,
         delivery_date: load.delivery_date,
-        current_location: load.current_location,
-        vehicle_number: load.vehicle_number,
-        driver_name: load.driver_name,
-        driver_phone: load.driver_phone,
+        current_location: null,
+        vehicle_number: load.horse?.registration_number || null,
+        driver_name: load.driver ? `${load.driver.first_name} ${load.driver.last_name}` : null,
+        driver_phone: load.driver?.contact_phone || null,
         rate: load.rate,
         created_at: load.created_at,
       }))
