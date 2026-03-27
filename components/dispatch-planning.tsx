@@ -175,13 +175,15 @@ export function DispatchPlanning() {
   const uniqueTransporters = useMemo(
     () =>
       [...new Map(
-        horses.map((h) => {
-          const transporter = h.transporter[0]
-          return [
-            transporter.id,
-            { id: transporter.id, name: transporter.trading_name || transporter.company_name },
-          ]
-        })
+        horses
+          .filter((h) => h.transporter && h.transporter.length > 0)
+          .map((h) => {
+            const transporter = h.transporter[0]
+            return [
+              transporter.id,
+              { id: transporter.id, name: transporter.trading_name || transporter.company_name },
+            ]
+          })
       ).values()].sort((a, b) => a.name.localeCompare(b.name)),
     [horses]
   )
