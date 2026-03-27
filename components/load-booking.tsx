@@ -187,9 +187,7 @@ export function LoadBooking() {
       const monthLoads = allLoads.filter((l) => l.created_at >= monthStart)
       setStats({
         total: allLoads.length,
-        pending: allLoads.filter(
-          (l) => !l.supplier_id && !l.horse_id && l.status !== "delivered" && l.status !== "cancelled"
-        ).length,
+        pending: allLoads.filter((l) => l.status === "pending").length,
         inTransit: allLoads.filter((l) => l.status === "in_transit").length,
         revenue: monthLoads
           .filter((l) => l.status === "delivered")
