@@ -18,11 +18,16 @@ interface GoogleMapsProviderProps {
 export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey ?? "",
     libraries,
     preventGoogleFontsLoading: false,
   })
+
+  // Log any load errors for debugging
+  if (loadError) {
+    console.error("Google Maps failed to load:", loadError)
+  }
 
   if (!apiKey) {
     console.warn("Google Maps API key not configured")

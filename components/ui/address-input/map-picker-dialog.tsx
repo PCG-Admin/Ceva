@@ -145,6 +145,8 @@ export function MapPickerDialog({
     try {
       const value = e.target.value
       setSearchQuery(value)
+      // Also update selected address so user can type manually
+      setSelectedAddress(value)
 
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
