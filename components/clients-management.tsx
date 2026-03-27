@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Plus, Search, Users, Edit, Trash2, Phone, Mail, CheckCircle2, AlertCircle } from "lucide-react"
 import { AddressInput } from "@/components/ui/address-input"
+import { GoogleMapsProvider } from "@/components/ui/address-input/google-maps-provider"
 import type { ClientAddress } from "@/types/location"
 import { createClientWithUser, updateClient } from "@/app/actions/create-client-user"
 import { useToast } from "@/hooks/use-toast"
@@ -78,17 +79,18 @@ export function ClientsManagement() {
   )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Clients</h2>
-          <p className="text-muted-foreground">Manage your clients</p>
+    <GoogleMapsProvider>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Clients</h2>
+            <p className="text-muted-foreground">Manage your clients</p>
+          </div>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Client
+          </Button>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Client
-        </Button>
-      </div>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -182,7 +184,8 @@ export function ClientsManagement() {
           }}
         />
       )}
-    </div>
+      </div>
+    </GoogleMapsProvider>
   )
 }
 
