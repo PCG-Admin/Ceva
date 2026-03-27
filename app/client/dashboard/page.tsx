@@ -1,15 +1,20 @@
 /**
- * CEVA Client Portal - Dashboard
- * Analytics and insights dashboard for client users
+ * CEVA Client Portal - Citrus Tracking Dashboard
+ * SOW Section 3.1.3 - Client-facing dashboard
+ *
+ * This page shows clients their citrus loads with live tracking.
+ * Data is filtered by RLS policies to show only their loads.
+ *
+ * Access: client@ceva.co.za / CevaCitrus2026!
  */
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ClientAnalytics } from '@/components/client-analytics'
+import { CitrusDashboardClient } from '@/components/citrus-dashboard-client'
 
 export const metadata = {
-  title: 'Dashboard | Client Portal',
-  description: 'Analytics and insights for your loads',
+  title: 'Client Dashboard | CEVA Logistics',
+  description: 'Live citrus load tracking dashboard for CEVA Logistics clients',
 }
 
 export default async function ClientDashboardPage() {
@@ -32,5 +37,5 @@ export default async function ClientDashboardPage() {
     redirect('/login')
   }
 
-  return <ClientAnalytics />
+  return <CitrusDashboardClient isClientView={true} />
 }
