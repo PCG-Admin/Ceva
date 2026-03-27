@@ -10,7 +10,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core"
-import { startOfWeek, addDays, format } from "date-fns"
+import { startOfWeek, startOfMonth, endOfMonth, addDays, format } from "date-fns"
 import { toast } from "sonner"
 import { Loader2, AlertCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -68,9 +68,17 @@ export function DispatchPlanning() {
     setLoading(true)
     setError(null)
 
-    const weekEnd = addDays(weekStart, 6)
-    const startStr = format(weekStart, 'yyyy-MM-dd')
-    const endStr = format(weekEnd, 'yyyy-MM-dd')
+    // Calculate date range based on view mode
+    let startDate = weekStart
+    let endDate = addDays(weekStart, 6)
+
+    if (viewMode === 'month') {
+      startDate = startOfMonth(weekStart)
+      endDate = endOfMonth(weekStart)
+    }
+
+    const startStr = format(startDate, 'yyyy-MM-dd')
+    const endStr = format(endDate, 'yyyy-MM-dd')
 
     const [loadsResult, horsesResult, driversResult, trailersResult] = await Promise.all([
       supabase
@@ -106,7 +114,7 @@ export function DispatchPlanning() {
         .order("registration_number", { ascending: true }),
     ])
 
-    console.log("[DispatchPlanning] Week range:", startStr, "to", endStr)
+    console.log(`[DispatchPlanning] ${viewMode === 'month' ? 'Month' : 'Week'} range:`, startStr, "to", endStr)
     console.log("[DispatchPlanning] Loads result:", { data: loadsResult.data, error: loadsResult.error, count: loadsResult.data?.length })
     console.log("[DispatchPlanning] Horses result:", { data: horsesResult.data, error: horsesResult.error, count: horsesResult.data?.length })
 
@@ -128,7 +136,7 @@ export function DispatchPlanning() {
     setDrivers(driversResult.data || [])
     setTrailers(trailersResult.data || [])
     setLoading(false)
-  }, [weekStart])
+  }, [weekStart, viewMode])
 
   useEffect(() => {
     fetchData()
