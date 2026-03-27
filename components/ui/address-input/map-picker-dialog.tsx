@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { GoogleMap, Marker } from "@react-google-maps/api"
 import { Search, MapPin, Loader2 } from "lucide-react"
 import type { LocationData, LatLng } from "@/types/location"
+import { useGoogleMapsLoaded } from "./google-maps-provider"
 
 interface PlacePrediction {
   placeId: string
@@ -46,6 +47,7 @@ export function MapPickerDialog({
   initialAddress,
   onSelect,
 }: MapPickerDialogProps) {
+  const isGoogleMapsLoaded = useGoogleMapsLoaded()
   const [selectedLocation, setSelectedLocation] = useState<LatLng | null>(null)
   const [selectedAddress, setSelectedAddress] = useState(initialAddress || "")
   const [searchQuery, setSearchQuery] = useState("")
@@ -184,8 +186,10 @@ export function MapPickerDialog({
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map
-    geocoderRef.current = new google.maps.Geocoder()
-  }, [])
+    if (isGoogleMapsLoaded && typeof google !== 'undefined') {
+      geocoderRef.current = new google.maps.Geocoder()
+    }
+  }, [isGoogleMapsLoaded])
 
   const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
     if (e.latLng && geocoderRef.current) {
@@ -280,19 +284,28 @@ export function MapPickerDialog({
 
           {/* Map */}
           <div className="rounded-lg border overflow-hidden">
-            <GoogleMap
-              mapContainerStyle={mapContainerStyle}
-              center={selectedLocation || defaultCenter}
-              zoom={selectedLocation ? 15 : 6}
-              onClick={onMapClick}
-              onLoad={onMapLoad}
-              options={{
-                streetViewControl: false,
-                mapTypeControl: false,
-              }}
-            >
-              {selectedLocation && <Marker position={selectedLocation} />}
-            </GoogleMap>
+            {isGoogleMapsLoaded ? (
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={selectedLocation || defaultCenter}
+                zoom={selectedLocation ? 15 : 6}
+                onClick={onMapClick}
+                onLoad={onMapLoad}
+                options={{
+                  streetViewControl: false,
+                  mapTypeControl: false,
+                }}
+              >
+                {selectedLocation && <Marker position={selectedLocation} />}
+              </GoogleMap>
+            ) : (
+              <div className="w-full h-[400px] flex items-center justify-center bg-muted">
+                <div className="text-center space-y-2">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Loading map...</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Selected Address Display */}

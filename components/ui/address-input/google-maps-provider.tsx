@@ -26,13 +26,15 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
 
   if (!apiKey) {
     console.warn("Google Maps API key not configured")
-    return <>{children}</>
+    // Still render children but with isLoaded = false
+    return (
+      <GoogleMapsContext.Provider value={false}>
+        {children}
+      </GoogleMapsContext.Provider>
+    )
   }
 
-  if (!isLoaded) {
-    return null
-  }
-
+  // Always render children, just pass the loading state
   return (
     <GoogleMapsContext.Provider value={isLoaded}>
       {children}
