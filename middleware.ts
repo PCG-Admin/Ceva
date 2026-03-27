@@ -76,13 +76,18 @@ export async function middleware(request: NextRequest) {
     const isClientRoute = request.nextUrl.pathname.startsWith('/client')
     const isDriverRoute = request.nextUrl.pathname.startsWith('/driver')
 
-    // Redirect clients to admin dashboard (they see filtered data via RLS)
+    // Redirect clients to their client portal
     if (userRole === 'client') {
-      // Allow clients to access /admin routes (RLS filters their data)
-      // Just redirect from home to citrus dashboard
-      if (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/client') {
+      // Redirect from home to client dashboard
+      if (request.nextUrl.pathname === '/') {
         const url = request.nextUrl.clone()
-        url.pathname = '/admin/citrus-dashboard'
+        url.pathname = '/client/dashboard'
+        return NextResponse.redirect(url)
+      }
+      // Prevent clients from accessing admin routes
+      if (isAdminRoute) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/client/dashboard'
         return NextResponse.redirect(url)
       }
     }
@@ -102,9 +107,8 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Allow admin, dispatcher, and client to access admin routes
-    // (RLS will filter data appropriately)
-    if (isAdminRoute && !['admin', 'dispatcher', 'client'].includes(userRole || '')) {
+    // Allow admin and dispatcher to access admin routes
+    if (isAdminRoute && !['admin', 'dispatcher'].includes(userRole || '')) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)

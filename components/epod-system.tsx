@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -381,9 +382,11 @@ function PODDetails({ pod }: { pod: POD }) {
               <div className="grid gap-4 md:grid-cols-2">
                 {pod.photos.map((photo, index) => (
                   <div key={index} className="rounded-lg border border-border bg-muted overflow-hidden">
-                    <ImageIcon
+                    <Image
                       src="/placeholder.svg?height=200&width=300"
                       alt={`Delivery photo ${index + 1}`}
+                      width={300}
+                      height={200}
                       className="w-full h-48 object-cover"
                     />
                     <div className="p-2">

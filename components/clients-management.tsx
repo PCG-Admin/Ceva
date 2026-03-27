@@ -291,8 +291,8 @@ function AddClientDialog({
     if (result.success) {
       toast({
         title: "Client created successfully",
-        description: result.warning || `Login credentials: ${formData.email} / CevaCitrus2026!`,
-        variant: result.warning ? "default" : "default",
+        description: result.message || `Login credentials: ${formData.email} / CevaCitrus2026!`,
+        variant: "default",
       })
       setFormData({ name: "", contact_number: "", email: "", pickup_addresses: [], delivery_addresses: [], notes: "" })
       onSuccess()

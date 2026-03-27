@@ -33,8 +33,8 @@ interface LoadWithMilestones {
   date_harrismith: string | null
   date_durban_arrival: string | null
   date_offloaded: string | null
-  supplier?: { company_name: string; trading_name: string | null } | null
-  driver?: { first_name: string; last_name: string } | null
+  supplier?: { company_name: string; trading_name: string | null }[] | null
+  driver?: { first_name: string; last_name: string }[] | null
 }
 
 interface CitrusDashboardClientProps {

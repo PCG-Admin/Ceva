@@ -18,9 +18,9 @@ export interface PlanningLoad {
   driver_id: string | null
   contract_id: string | null
   notes: string | null
-  // Joined relations
-  supplier?: { company_name: string; trading_name: string | null } | null
-  horse?: { registration_number: string } | null
+  // Joined relations (Supabase returns arrays for foreign key joins)
+  supplier?: { company_name: string; trading_name: string | null }[] | null
+  horse?: { registration_number: string }[] | null
 }
 
 export interface PlanningHorse {
@@ -30,7 +30,7 @@ export interface PlanningHorse {
   model: string | null
   status: string
   transporter_id: string
-  transporter: { id: string; company_name: string; trading_name: string | null }
+  transporter: { id: string; company_name: string; trading_name: string | null }[]
 }
 
 export type GridCellKey = `${string}:${string}`

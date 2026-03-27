@@ -194,7 +194,9 @@ export async function getVehicleTrips(
         TripEndUTC: t.endTime,
         TripOdo: t.tripOdo,
         MaxSpeed: t.maxSpeed,
+        Tag: "",
         DriverName: t.driverName || "",
+        DriverId: "",
       })),
     }
   }
@@ -215,7 +217,9 @@ export async function getVehicleTrips(
         TripEndUTC: t.endTime,
         TripOdo: t.tripOdo,
         MaxSpeed: t.maxSpeed,
+        Tag: "",
         DriverName: t.driverName || "",
+        DriverId: "",
       })),
     }
   }

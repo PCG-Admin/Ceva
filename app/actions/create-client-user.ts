@@ -26,29 +26,7 @@ export async function createClientWithUser(data: {
   }
 
   try {
-    // Step 1: Create the client record
-    const { data: clientData, error: clientError } = await supabase
-      .from("ceva_clients")
-      .insert({
-        name: data.name,
-        email: data.email,
-        contact_number: data.contact_number || null,
-        pickup_addresses: data.pickup_addresses || [],
-        delivery_addresses: data.delivery_addresses || [],
-        notes: data.notes || null,
-      })
-      .select()
-      .single()
-
-    if (clientError) {
-      console.error("Error creating client:", clientError)
-      return {
-        success: false,
-        error: `Failed to create client: ${clientError.message}`,
-      }
-    }
-
-    // Step 2: Create auth user with Supabase Admin API
+    // Step 1: Create auth user FIRST with Supabase Admin API
     console.log("Creating auth user for:", data.email)
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
@@ -63,27 +41,40 @@ export async function createClientWithUser(data: {
     if (authError) {
       console.error("Error creating auth user:", authError)
       console.error("Full error details:", JSON.stringify(authError, null, 2))
-      // Don't fail completely - client record exists, admin can create user manually
       return {
-        success: true,
-        warning: `Client created but login not enabled: ${authError.message || JSON.stringify(authError)}. Please create auth user manually.`,
-        client: clientData,
+        success: false,
+        error: `Failed to create auth user: ${authError.message || JSON.stringify(authError)}`,
       }
     }
 
     console.log("Auth user created successfully:", authUser.user.id)
 
-    // Step 3: Link the client to the auth user
-    const { error: linkError } = await supabase
+    // Step 2: Create the client record with user_id linking to auth user
+    const { data: clientData, error: clientError } = await supabase
       .from("ceva_clients")
-      .update({ user_id: authUser.user.id })
-      .eq("id", clientData.id)
+      .insert({
+        name: data.name,
+        email: data.email,
+        contact_number: data.contact_number || null,
+        pickup_addresses: data.pickup_addresses || [],
+        delivery_addresses: data.delivery_addresses || [],
+        notes: data.notes || null,
+        user_id: authUser.user.id, // Link to auth user
+      })
+      .select()
+      .single()
 
-    if (linkError) {
-      console.error("Error linking client to user:", linkError)
+    if (clientError) {
+      console.error("Error creating client:", clientError)
+      // Auth user was created, so we should try to clean it up
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id)
+      return {
+        success: false,
+        error: `Failed to create client: ${clientError.message}`,
+      }
     }
 
-    // Step 4: Set the role to 'client' in the profile
+    // Step 3: Set the role to 'client' in the profile
     // The profile should be auto-created by a trigger, but we'll update it to be sure
     const { error: roleError } = await supabase
       .from("ceva_profiles")

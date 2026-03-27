@@ -175,10 +175,13 @@ export function DispatchPlanning() {
   const uniqueTransporters = useMemo(
     () =>
       [...new Map(
-        horses.map((h) => [
-          h.transporter.id,
-          { id: h.transporter.id, name: h.transporter.trading_name || h.transporter.company_name },
-        ])
+        horses.map((h) => {
+          const transporter = h.transporter[0]
+          return [
+            transporter.id,
+            { id: transporter.id, name: transporter.trading_name || transporter.company_name },
+          ]
+        })
       ).values()].sort((a, b) => a.name.localeCompare(b.name)),
     [horses]
   )
@@ -292,8 +295,8 @@ export function DispatchPlanning() {
                 driver_id: availableDriver?.id || null,
                 supplier_id: horse.transporter_id,
                 status: "assigned" as const,
-                horse: { registration_number: horse.registration_number },
-                supplier: { company_name: horse.transporter.company_name, trading_name: horse.transporter.trading_name },
+                horse: [{ registration_number: horse.registration_number }],
+                supplier: [{ company_name: horse.transporter[0].company_name, trading_name: horse.transporter[0].trading_name }],
               }
             : l
         )

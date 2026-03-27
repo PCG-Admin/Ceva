@@ -127,13 +127,13 @@ export function LoadDetailDialog({ load, open, onOpenChange, drivers, trailers, 
           </div>
 
           {/* Assignment info */}
-          {load.supplier && (
+          {load.supplier && load.supplier.length > 0 && (
             <div className="flex items-center gap-2 pt-2 border-t border-border">
               <Truck className="h-4 w-4 text-muted-foreground" />
               <div>
                 <div className="text-xs text-muted-foreground">Assigned to</div>
                 <div className="text-sm">
-                  {load.horse?.registration_number || 'N/A'} — {load.supplier.trading_name || load.supplier.company_name}
+                  {(load.horse && load.horse.length > 0) ? load.horse[0].registration_number : 'N/A'} — {load.supplier[0].trading_name || load.supplier[0].company_name}
                 </div>
               </div>
             </div>

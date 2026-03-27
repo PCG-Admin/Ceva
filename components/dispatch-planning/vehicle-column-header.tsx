@@ -7,7 +7,8 @@ interface VehicleColumnHeaderProps {
 }
 
 export function VehicleColumnHeader({ horse }: VehicleColumnHeaderProps) {
-  const transporterName = horse.transporter.trading_name || horse.transporter.company_name
+  const transporter = horse.transporter[0]
+  const transporterName = transporter?.trading_name || transporter?.company_name || 'Unknown'
 
   return (
     <div className="p-2 border-b border-r border-border bg-card">
