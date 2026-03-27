@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { PortalLayout } from "@/components/portal-layout"
-import { BarChart3, TrendingUp } from "lucide-react"
+import { BarChart3 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 const allNavItems = [
@@ -10,12 +10,6 @@ const allNavItems = [
     icon: <BarChart3 className="h-5 w-5" />,
     label: "Dashboard",
     href: "/client/dashboard",
-    adminOnly: false,
-  },
-  {
-    icon: <TrendingUp className="h-5 w-5" />,
-    label: "Analytics",
-    href: "/client/analytics",
     adminOnly: false,
   },
 ]
