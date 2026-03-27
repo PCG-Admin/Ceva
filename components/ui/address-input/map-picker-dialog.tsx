@@ -61,7 +61,13 @@ export function MapPickerDialog({
 
   // Fetch suggestions from Places API (New)
   const fetchSuggestions = async (input: string) => {
-    if (!input || input.length < 3 || !apiKey) {
+    if (!input || input.length < 3) {
+      setSuggestions([])
+      return
+    }
+
+    if (!apiKey) {
+      console.warn("Google Maps API key not configured")
       setSuggestions([])
       return
     }
@@ -88,18 +94,23 @@ export function MapPickerDialog({
         const data = await response.json()
         setSuggestions(data.suggestions?.map((s: { placePrediction: PlacePrediction }) => s.placePrediction) || [])
       } else {
+        console.error("Places API error:", response.status, response.statusText)
         setSuggestions([])
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error)
       setSuggestions([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   // Get place details to get coordinates
   const getPlaceDetails = async (placeId: string) => {
-    if (!apiKey) return null
+    if (!apiKey) {
+      console.warn("Google Maps API key not configured")
+      return null
+    }
 
     try {
       const response = await fetch(
@@ -119,6 +130,8 @@ export function MapPickerDialog({
             ? { lat: data.location.latitude, lng: data.location.longitude }
             : null,
         }
+      } else {
+        console.error("Places details API error:", response.status, response.statusText)
       }
     } catch (error) {
       console.error("Error fetching place details:", error)
@@ -127,34 +140,46 @@ export function MapPickerDialog({
   }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setSearchQuery(value)
+    try {
+      const value = e.target.value
+      setSearchQuery(value)
 
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+      debounceRef.current = setTimeout(() => {
+        fetchSuggestions(value)
+      }, 300)
+
+      setShowSuggestions(true)
+    } catch (error) {
+      console.error("Error handling search change:", error)
     }
-    debounceRef.current = setTimeout(() => {
-      fetchSuggestions(value)
-    }, 300)
-
-    setShowSuggestions(true)
   }
 
   const handleSuggestionClick = async (suggestion: PlacePrediction) => {
-    const details = await getPlaceDetails(suggestion.placeId)
-    if (details) {
-      setSelectedAddress(details.address)
-      if (details.coordinates) {
-        setSelectedLocation(details.coordinates)
-        mapRef.current?.panTo(details.coordinates)
-        mapRef.current?.setZoom(15)
+    try {
+      const details = await getPlaceDetails(suggestion.placeId)
+      if (details) {
+        setSelectedAddress(details.address)
+        if (details.coordinates) {
+          setSelectedLocation(details.coordinates)
+          mapRef.current?.panTo(details.coordinates)
+          mapRef.current?.setZoom(15)
+        }
+      } else {
+        setSelectedAddress(suggestion.text.text)
       }
-    } else {
+      setSearchQuery(suggestion.text.text)
+      setShowSuggestions(false)
+      setSuggestions([])
+    } catch (error) {
+      console.error("Error handling suggestion click:", error)
       setSelectedAddress(suggestion.text.text)
+      setSearchQuery(suggestion.text.text)
+      setShowSuggestions(false)
+      setSuggestions([])
     }
-    setSearchQuery(suggestion.text.text)
-    setShowSuggestions(false)
-    setSuggestions([])
   }
 
   const onMapLoad = useCallback((map: google.maps.Map) => {

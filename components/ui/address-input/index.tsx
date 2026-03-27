@@ -87,7 +87,13 @@ export function AddressInput({
 
   // Fetch suggestions from Places API (New)
   const fetchSuggestions = async (input: string) => {
-    if (!input || input.length < 3 || !apiKey) {
+    if (!input || input.length < 3) {
+      setSuggestions([])
+      return
+    }
+
+    if (!apiKey) {
+      console.warn("Google Maps API key not configured")
       setSuggestions([])
       return
     }
@@ -114,18 +120,23 @@ export function AddressInput({
         const data = await response.json()
         setSuggestions(data.suggestions?.map((s: { placePrediction: PlacePrediction }) => s.placePrediction) || [])
       } else {
+        console.error("Places API error:", response.status, response.statusText)
         setSuggestions([])
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error)
       setSuggestions([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   // Get place details to get coordinates
   const getPlaceDetails = async (placeId: string) => {
-    if (!apiKey) return null
+    if (!apiKey) {
+      console.warn("Google Maps API key not configured")
+      return null
+    }
 
     try {
       const response = await fetch(
@@ -146,6 +157,8 @@ export function AddressInput({
             : null,
           placeId: placeId,
         }
+      } else {
+        console.error("Places details API error:", response.status, response.statusText)
       }
     } catch (error) {
       console.error("Error fetching place details:", error)
@@ -155,7 +168,10 @@ export function AddressInput({
 
   // Reverse geocode coordinates to get address
   const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
-    if (!apiKey) return null
+    if (!apiKey) {
+      console.warn("Google Maps API key not configured")
+      return null
+    }
 
     try {
       const response = await fetch(
@@ -167,6 +183,8 @@ export function AddressInput({
         if (data.results && data.results.length > 0) {
           return data.results[0].formatted_address
         }
+      } else {
+        console.error("Geocoding API error:", response.status, response.statusText)
       }
     } catch (error) {
       console.error("Error reverse geocoding:", error)
@@ -226,29 +244,40 @@ export function AddressInput({
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-    onChange({ address: newValue, coordinates: null })
+    try {
+      const newValue = e.target.value
+      onChange({ address: newValue, coordinates: null })
 
-    // Debounce the API call
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
+      // Debounce the API call
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+      debounceRef.current = setTimeout(() => {
+        fetchSuggestions(newValue)
+      }, 300)
+
+      setShowSuggestions(true)
+    } catch (error) {
+      console.error("Error handling input change:", error)
     }
-    debounceRef.current = setTimeout(() => {
-      fetchSuggestions(newValue)
-    }, 300)
-
-    setShowSuggestions(true)
   }
 
   const handleSuggestionClick = async (suggestion: PlacePrediction) => {
-    const details = await getPlaceDetails(suggestion.placeId)
-    if (details) {
-      onChange(details)
-    } else {
+    try {
+      const details = await getPlaceDetails(suggestion.placeId)
+      if (details) {
+        onChange(details)
+      } else {
+        onChange({ address: suggestion.text.text, coordinates: null })
+      }
+      setShowSuggestions(false)
+      setSuggestions([])
+    } catch (error) {
+      console.error("Error handling suggestion click:", error)
       onChange({ address: suggestion.text.text, coordinates: null })
+      setShowSuggestions(false)
+      setSuggestions([])
     }
-    setShowSuggestions(false)
-    setSuggestions([])
   }
 
   const handleMapSelect = (location: LocationData) => {
