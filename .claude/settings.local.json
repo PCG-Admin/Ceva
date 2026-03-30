@@ -9,7 +9,10 @@
       "Bash(npm audit)",
       "Bash(npm run build)",
       "Bash(node -e \"console.log(require(''crypto'').randomBytes(32).toString(''hex''))\")",
-      "Bash(supabase db push)"
+      "Bash(supabase db push)",
+      "Bash(git add lib/security/encryption.ts)",
+      "Bash(git commit -m \"Make encryption key optional with fallback\")",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []
