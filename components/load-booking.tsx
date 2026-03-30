@@ -135,19 +135,7 @@ interface LoadStats {
 // Material type options (SOW: Default is Citrus for CEVA module)
 const MATERIAL_TYPES = [
   { value: "citrus", label: "Citrus" }, // SOW Section 3.1.1 - Default for CEVA
-  { value: "coal", label: "Coal" },
-  { value: "chrome", label: "Chrome" },
-  { value: "manganese", label: "Manganese" },
-  { value: "iron_ore", label: "Iron Ore" },
-  { value: "limestone", label: "Limestone" },
-  { value: "sand", label: "Sand" },
-  { value: "gravel", label: "Gravel" },
-  { value: "cement", label: "Cement" },
-  { value: "fertilizer", label: "Fertilizer" },
-  { value: "grain", label: "Grain" },
-  { value: "maize", label: "Maize" },
-  { value: "sugar", label: "Sugar" },
-  { value: "other", label: "Other" },
+
 ] as const
 
 export function LoadBooking() {

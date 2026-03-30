@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(cat \"c:\\Users\\zandi\\Downloads\\Ceva\\app\\admin\\layout.tsx\")",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm audit --audit-level=moderate)",
+      "Bash(npm audit fix)",
+      "Bash(npm install next@latest)",
+      "Bash(npm audit)",
+      "Bash(npm run build)",
+      "Bash(node -e \"console.log(require(''crypto'').randomBytes(32).toString(''hex''))\")",
+      "Bash(supabase db push)"
     ],
     "deny": [],
     "ask": []

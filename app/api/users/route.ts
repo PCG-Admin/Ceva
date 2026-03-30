@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { withSecurity } from "@/lib/security/middleware"
+import { validateAndSanitize, createUserSchema } from "@/lib/security/validation"
+import { logUserEvent, logApiViolation } from "@/lib/security/audit-log"
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
+    await logApiViolation(
+      "api.unauthorized_access",
+      request,
+      "/api/users"
+    )
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -19,18 +27,28 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (profile?.role !== "admin") {
+    await logApiViolation(
+      "api.forbidden_access",
+      request,
+      "/api/users",
+      user.id
+    )
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const body = await request.json()
-  const { email, password, full_name, phone, role } = body
 
-  if (!email || !password || !full_name) {
+  // Validate and sanitize input
+  const validation = validateAndSanitize(body, createUserSchema)
+
+  if (!validation.success) {
     return NextResponse.json(
-      { error: "Email, password, and full name are required" },
+      { error: validation.error },
       { status: 400 }
     )
   }
+
+  const { email, password, full_name, phone, role } = validation.data
 
   const adminSupabase = createAdminClient()
   const { data, error } = await adminSupabase.auth.admin.createUser({
@@ -48,5 +66,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
+  // Log user creation event
+  await logUserEvent(
+    "user.create",
+    user.id,
+    data.user.id,
+    request,
+    {
+      email,
+      role: role || "admin",
+    }
+  )
+
   return NextResponse.json({ id: data.user.id })
 }
+
+// Apply security middleware with rate limiting
+export const POST = withSecurity(handler, {
+  rateLimit: {
+    interval: 60 * 1000, // 1 minute
+    uniqueTokenPerInterval: 5, // Max 5 user creations per minute
+  },
+  maxRequestSizeKB: 10, // 10KB max request size
+})

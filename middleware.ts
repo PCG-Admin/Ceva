@@ -1,6 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Session timeout configuration (in milliseconds)
+const SESSION_TIMEOUT = 30 * 60 * 1000 // 30 minutes
+const SESSION_ABSOLUTE_TIMEOUT = 12 * 60 * 60 * 1000 // 12 hours
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -28,6 +32,49 @@ export async function middleware(request: NextRequest) {
       },
     }
   )
+
+  // Session timeout management
+  const lastActivity = request.cookies.get('last_activity')?.value
+  const sessionStart = request.cookies.get('session_start')?.value
+  const now = Date.now()
+
+  if (lastActivity) {
+    const timeSinceActivity = now - parseInt(lastActivity)
+
+    // Check for idle timeout
+    if (timeSinceActivity > SESSION_TIMEOUT) {
+      // Session expired due to inactivity
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('session', 'expired')
+      const response = NextResponse.redirect(url)
+
+      // Clear session cookies
+      response.cookies.delete('last_activity')
+      response.cookies.delete('session_start')
+
+      return response
+    }
+  }
+
+  if (sessionStart) {
+    const sessionDuration = now - parseInt(sessionStart)
+
+    // Check for absolute timeout
+    if (sessionDuration > SESSION_ABSOLUTE_TIMEOUT) {
+      // Session expired due to absolute timeout
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('session', 'expired')
+      const response = NextResponse.redirect(url)
+
+      // Clear session cookies
+      response.cookies.delete('last_activity')
+      response.cookies.delete('session_start')
+
+      return response
+    }
+  }
 
   // IMPORTANT: Do NOT use getSession() - it doesn't revalidate tokens
   // Use getUser() which makes a request to Supabase Auth server
@@ -119,6 +166,24 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)
+    }
+
+    // Update session activity timestamps
+    supabaseResponse.cookies.set('last_activity', now.toString(), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: SESSION_ABSOLUTE_TIMEOUT / 1000,
+    })
+
+    // Set session start if not exists
+    if (!sessionStart) {
+      supabaseResponse.cookies.set('session_start', now.toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: SESSION_ABSOLUTE_TIMEOUT / 1000,
+      })
     }
   }
 
