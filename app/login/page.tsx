@@ -14,6 +14,7 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/'
@@ -22,21 +23,40 @@ function LoginForm() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setAttemptsRemaining(null)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      // Call our protected login API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (error) {
-      setError(error.message)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error)
+        if (data.attemptsRemaining !== undefined) {
+          setAttemptsRemaining(data.attemptsRemaining)
+        }
+        setLoading(false)
+        return
+      }
+
+      // Successful login - create Supabase session
+      const supabase = createClient()
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      router.push(redirectTo)
+      router.refresh()
+    } catch (err) {
+      setError('An error occurred during login. Please try again.')
       setLoading(false)
-      return
     }
-
-    router.push(redirectTo)
-    router.refresh()
   }
 
   return (
@@ -83,7 +103,12 @@ function LoginForm() {
             </div>
             {error && (
               <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                {error}
+                <p>{error}</p>
+                {attemptsRemaining !== null && attemptsRemaining > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {attemptsRemaining} {attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining
+                  </p>
+                )}
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
