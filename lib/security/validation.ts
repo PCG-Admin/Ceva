@@ -63,11 +63,10 @@ export const passwordSchema = z
 export const phoneSchema = z
   .string()
   .refine(
-    (val) => val === '' || /^\+?[1-9]\d{1,14}$/.test(val),
+    (val) => !val || val === '' || /^\+?[1-9]\d{1,14}$/.test(val),
     'Invalid phone number format'
   )
   .optional()
-  .or(z.literal(''))
 
 /**
  * Validate UUID
