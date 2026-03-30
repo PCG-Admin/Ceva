@@ -13,7 +13,10 @@
       "Bash(git add lib/security/encryption.ts)",
       "Bash(git commit -m \"Make encryption key optional with fallback\")",
       "Bash(git push)",
-      "Bash(npm run dev)"
+      "Bash(npm run dev)",
+      "Bash(taskkill /PID 53160 /F)",
+      "Bash(taskkill //PID 53160 //F)",
+      "Bash(git add next.config.mjs lib/security/middleware.ts lib/security/validation.ts app/api/users/route.ts)"
     ],
     "deny": [],
     "ask": []
