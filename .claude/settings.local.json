@@ -16,7 +16,9 @@
       "Bash(npm run dev)",
       "Bash(taskkill /PID 53160 /F)",
       "Bash(taskkill //PID 53160 //F)",
-      "Bash(git add next.config.mjs lib/security/middleware.ts lib/security/validation.ts app/api/users/route.ts)"
+      "Bash(git add next.config.mjs lib/security/middleware.ts lib/security/validation.ts app/api/users/route.ts)",
+      "Bash(git add lib/security/validation.ts)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix phone number validation to accept local format starting with 0\n\nThe phone validation was rejecting phone numbers starting with 0 (like South African local format 0812456710). Updated regex to accept:\n- Local format: 0123456789\n- International format: +27123456789\n- Any phone number 8-15 digits starting with any digit\n\nThis fixes the \"Invalid phone number format\" error when creating users.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
