@@ -339,10 +339,12 @@ export function UserManagement() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData((f) => ({ ...f, password: e.target.value }))}
-                  minLength={6}
+                  minLength={8}
                   required
                 />
-                <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+                <p className="text-xs text-muted-foreground">
+                  Min 8 characters with uppercase, lowercase, number & special character
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -420,10 +422,10 @@ export function UserManagement() {
                   value={editData.password}
                   onChange={(e) => setEditData((d) => ({ ...d, password: e.target.value }))}
                   placeholder="Leave blank to keep current"
-                  minLength={6}
+                  minLength={8}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Only fill this if you want to change the password
+                  Min 8 chars with uppercase, lowercase, number & special character. Leave blank to keep current.
                 </p>
               </div>
             </div>
