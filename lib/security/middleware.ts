@@ -70,12 +70,33 @@ export async function sqlInjectionMiddleware(
     // Check request body for POST/PUT/PATCH — clone first so the body stream
     // is not consumed before the actual route handler reads it.
     if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
+      // Skip if Content-Type is not JSON
+      const contentType = request.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        return null
+      }
+
       try {
         const cloned = request.clone()
         const body = await cloned.json()
-        const bodyStr = JSON.stringify(body)
 
-        if (detectSqlInjection(bodyStr)) {
+        // Check each field individually for better error messages
+        const checkFields = (obj: any, path = ''): boolean => {
+          if (typeof obj === 'string') {
+            return detectSqlInjection(obj)
+          }
+          if (typeof obj === 'object' && obj !== null) {
+            for (const [key, value] of Object.entries(obj)) {
+              if (checkFields(value, path ? `${path}.${key}` : key)) {
+                return true
+              }
+            }
+          }
+          return false
+        }
+
+        if (checkFields(body)) {
+          console.error('SQL injection detected in request body:', JSON.stringify(body, null, 2))
           await logSecurityViolation(
             'security.sql_injection_attempt',
             request,
@@ -84,12 +105,13 @@ export async function sqlInjectionMiddleware(
           )
 
           return NextResponse.json(
-            { error: 'Invalid request data' },
+            { error: 'Invalid request data - potential SQL injection detected' },
             { status: 400 }
           )
         }
-      } catch {
-        // If body is not JSON, skip check
+      } catch (error) {
+        // If body parsing fails, let the route handler deal with it
+        console.error('Error parsing request body in SQL injection check:', error)
       }
     }
   } catch (error) {

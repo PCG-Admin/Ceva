@@ -58,11 +58,16 @@ export const passwordSchema = z
 
 /**
  * Validate phone number
+ * Allow empty string or valid phone format
  */
 export const phoneSchema = z
   .string()
-  .regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format')
+  .refine(
+    (val) => val === '' || /^\+?[1-9]\d{1,14}$/.test(val),
+    'Invalid phone number format'
+  )
   .optional()
+  .or(z.literal(''))
 
 /**
  * Validate UUID
@@ -113,13 +118,26 @@ export function validateAndSanitize<T>(
 
 /**
  * SQL Injection Prevention - Check for suspicious patterns
+ * More refined to reduce false positives
  */
 export function detectSqlInjection(input: string): boolean {
+  // Skip empty strings or very short inputs
+  if (!input || input.length < 3) {
+    return false
+  }
+
   const sqlInjectionPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|DECLARE)\b)/gi,
-    /(--|\*\/|\/\*)/g, // SQL comments
-    /('|('')|;|\\x|\\u)/g, // SQL special characters
-    /(\bOR\b|\bAND\b).*?=.*?=/gi, // OR/AND with comparisons
+    // SQL keywords followed by SQL syntax (more specific)
+    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b).*?(\bFROM\b|\bINTO\b|\bWHERE\b|\bSET\b|\bTABLE\b)/gi,
+    // UNION attacks
+    /\bUNION\b.*?\bSELECT\b/gi,
+    // SQL comments in combination with quotes
+    /('|").*?(--|\/\*|\*\/)/g,
+    // Multiple SQL-like patterns together
+    /(\bOR\b|\bAND\b).*?['"]?\s*=\s*['"]?/gi,
+    // Common SQL injection patterns
+    /['"]?\s*(OR|AND)\s+['"]?1['"]?\s*=\s*['"]?1/gi,
+    /;\s*(DROP|DELETE|INSERT|UPDATE|CREATE|ALTER)/gi,
   ]
 
   return sqlInjectionPatterns.some((pattern) => pattern.test(input))

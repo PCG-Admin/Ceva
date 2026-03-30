@@ -12,7 +12,8 @@
       "Bash(supabase db push)",
       "Bash(git add lib/security/encryption.ts)",
       "Bash(git commit -m \"Make encryption key optional with fallback\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npm run dev)"
     ],
     "deny": [],
     "ask": []

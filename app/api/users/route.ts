@@ -42,6 +42,8 @@ async function handler(request: NextRequest) {
   const validation = validateAndSanitize(body, createUserSchema)
 
   if (!validation.success) {
+    console.error('User creation validation failed:', validation.error)
+    console.error('Request body:', JSON.stringify(body, null, 2))
     return NextResponse.json(
       { error: validation.error },
       { status: 400 }
