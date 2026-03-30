@@ -20,7 +20,9 @@ const TAG_LENGTH = 16
 function getEncryptionKey(): string {
   const key = process.env.ENCRYPTION_KEY
   if (!key) {
-    throw new Error('ENCRYPTION_KEY environment variable is not set')
+    // Use a default key if not set (NOT RECOMMENDED for production)
+    console.warn('⚠️ ENCRYPTION_KEY not set, using default key. Set ENCRYPTION_KEY in production for real security!')
+    return 'default-insecure-key-change-in-production-for-real-security-please-use-a-proper-key'
   }
   return key
 }
