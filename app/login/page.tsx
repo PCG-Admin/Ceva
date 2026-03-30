@@ -3,7 +3,6 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,35 +25,32 @@ function LoginForm() {
     setAttemptsRemaining(null)
 
     try {
-      // Call our protected login API
-      const response = await fetch('/api/auth/login', {
+      // Check brute force protection via API
+      const checkResponse = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
 
-      const data = await response.json()
+      const checkData = await checkResponse.json()
 
-      if (!response.ok) {
-        setError(data.error)
-        if (data.attemptsRemaining !== undefined) {
-          setAttemptsRemaining(data.attemptsRemaining)
+      // If locked out or other API error, show it
+      if (!checkResponse.ok) {
+        setError(checkData.error || 'Login failed')
+        if (checkData.attemptsRemaining !== undefined) {
+          setAttemptsRemaining(checkData.attemptsRemaining)
         }
         setLoading(false)
         return
       }
 
-      // Successful login - create Supabase session
-      const supabase = createClient()
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
+      // API handled auth, just redirect
       router.push(redirectTo)
       router.refresh()
     } catch (err) {
-      setError('An error occurred during login. Please try again.')
+      console.error('Login error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during login. Please try again.'
+      setError(errorMessage)
       setLoading(false)
     }
   }
