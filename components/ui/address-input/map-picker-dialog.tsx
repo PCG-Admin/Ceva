@@ -16,13 +16,6 @@ import { Search, MapPin, Loader2 } from "lucide-react"
 import type { LocationData, LatLng } from "@/types/location"
 import { useGoogleMapsLoaded } from "./google-maps-provider"
 
-interface PlacePrediction {
-  placeId: string
-  text: {
-    text: string
-  }
-}
-
 interface MapPickerDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -51,7 +44,7 @@ export function MapPickerDialog({
   const [selectedLocation, setSelectedLocation] = useState<LatLng | null>(null)
   const [selectedAddress, setSelectedAddress] = useState(initialAddress || "")
   const [searchQuery, setSearchQuery] = useState("")
-  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([])
+  const [suggestions, setSuggestions] = useState<google.maps.places.PlacePrediction[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
   const geocoderRef = useRef<google.maps.Geocoder | null>(null)
@@ -59,101 +52,54 @@ export function MapPickerDialog({
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-  // Fetch suggestions from Places API (New)
-  const fetchSuggestions = async (input: string) => {
+  // Fetch suggestions using Places API (New) via the JS SDK
+  const fetchSuggestions = useCallback(async (input: string) => {
     if (!input || input.length < 3) {
-      setSuggestions([])
-      return
-    }
-
-    if (!apiKey) {
-      console.warn("Google Maps API key not configured")
       setSuggestions([])
       return
     }
 
     setLoading(true)
     try {
-      const response = await fetch(
-        "https://places.googleapis.com/v1/places:autocomplete",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": apiKey,
-          },
-          body: JSON.stringify({
-            input: input,
-            includedRegionCodes: ["ZA"],
-            languageCode: "en",
-          }),
-        }
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        setSuggestions(data.suggestions?.map((s: { placePrediction: PlacePrediction }) => s.placePrediction) || [])
-      } else {
-        console.error("Places API error:", response.status, response.statusText)
-        setSuggestions([])
-      }
+      const { AutocompleteSuggestion } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary
+      const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input,
+        includedRegionCodes: ["ZA"],
+      })
+      setSuggestions(suggestions.map(s => s.placePrediction!))
     } catch (error) {
       console.error("Error fetching suggestions:", error)
       setSuggestions([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  // Get place details to get coordinates
-  const getPlaceDetails = async (placeId: string) => {
-    if (!apiKey) {
-      console.warn("Google Maps API key not configured")
-      return null
-    }
-
+  // Get place details using Places API (New) via the JS SDK
+  const getPlaceDetails = useCallback(async (placePrediction: google.maps.places.PlacePrediction): Promise<{ address: string; coordinates: LatLng | null } | null> => {
     try {
-      const response = await fetch(
-        `https://places.googleapis.com/v1/places/${placeId}?fields=formattedAddress,location`,
-        {
-          headers: {
-            "X-Goog-Api-Key": apiKey,
-          },
-        }
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        return {
-          address: data.formattedAddress || "",
-          coordinates: data.location
-            ? { lat: data.location.latitude, lng: data.location.longitude }
-            : null,
-        }
-      } else {
-        console.error("Places details API error:", response.status, response.statusText)
+      const place = placePrediction.toPlace()
+      await place.fetchFields({ fields: ["formattedAddress", "location"] })
+      return {
+        address: place.formattedAddress || "",
+        coordinates: place.location
+          ? { lat: place.location.lat(), lng: place.location.lng() }
+          : null,
       }
     } catch (error) {
       console.error("Error fetching place details:", error)
+      return null
     }
-    return null
-  }
+  }, [])
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const value = e.target.value
       setSearchQuery(value)
-      // Also update selected address so user can type manually
       setSelectedAddress(value)
 
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-      debounceRef.current = setTimeout(() => {
-        fetchSuggestions(value)
-      }, 300)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => fetchSuggestions(value), 300)
 
       setShowSuggestions(true)
     } catch (error) {
@@ -161,9 +107,9 @@ export function MapPickerDialog({
     }
   }
 
-  const handleSuggestionClick = async (suggestion: PlacePrediction) => {
+  const handleSuggestionClick = async (suggestion: google.maps.places.PlacePrediction) => {
     try {
-      const details = await getPlaceDetails(suggestion.placeId)
+      const details = await getPlaceDetails(suggestion)
       if (details) {
         setSelectedAddress(details.address)
         if (details.coordinates) {
@@ -172,15 +118,15 @@ export function MapPickerDialog({
           mapRef.current?.setZoom(15)
         }
       } else {
-        setSelectedAddress(suggestion.text.text)
+        setSelectedAddress(suggestion.text.toString())
       }
-      setSearchQuery(suggestion.text.text)
+      setSearchQuery(suggestion.text.toString())
       setShowSuggestions(false)
       setSuggestions([])
     } catch (error) {
       console.error("Error handling suggestion click:", error)
-      setSelectedAddress(suggestion.text.text)
-      setSearchQuery(suggestion.text.text)
+      setSelectedAddress(suggestion.text.toString())
+      setSearchQuery(suggestion.text.toString())
       setShowSuggestions(false)
       setSuggestions([])
     }
@@ -188,7 +134,7 @@ export function MapPickerDialog({
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map
-    if (isGoogleMapsLoaded && typeof google !== 'undefined') {
+    if (isGoogleMapsLoaded && typeof google !== "undefined") {
       geocoderRef.current = new google.maps.Geocoder()
     }
   }, [isGoogleMapsLoaded])
@@ -199,15 +145,11 @@ export function MapPickerDialog({
       const lng = e.latLng.lng()
       setSelectedLocation({ lat, lng })
 
-      // Reverse geocode to get address
-      geocoderRef.current.geocode(
-        { location: { lat, lng } },
-        (results, status) => {
-          if (status === "OK" && results?.[0]) {
-            setSelectedAddress(results[0].formatted_address)
-          }
+      geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === "OK" && results?.[0]) {
+          setSelectedAddress(results[0].formatted_address)
         }
-      )
+      })
     }
   }, [])
 
@@ -218,7 +160,6 @@ export function MapPickerDialog({
     })
   }
 
-  // Reset state when dialog opens
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
       setSelectedAddress(initialAddress || "")
@@ -230,14 +171,12 @@ export function MapPickerDialog({
     onOpenChange(newOpen)
   }
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false)
       }
     }
-
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
@@ -261,7 +200,9 @@ export function MapPickerDialog({
               className="pl-9 pr-9"
               value={searchQuery}
               onChange={handleSearchChange}
-              onFocus={() => searchQuery.length >= 3 && suggestions.length > 0 && setShowSuggestions(true)}
+              onFocus={() =>
+                searchQuery.length >= 3 && suggestions.length > 0 && setShowSuggestions(true)
+              }
             />
             {loading && (
               <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -270,14 +211,14 @@ export function MapPickerDialog({
             {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-60 overflow-y-auto">
-                {suggestions.map((suggestion) => (
+                {suggestions.map((suggestion, index) => (
                   <button
-                    key={suggestion.placeId}
+                    key={index}
                     type="button"
                     className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                     onClick={() => handleSuggestionClick(suggestion)}
                   >
-                    {suggestion.text.text}
+                    {suggestion.text.toString()}
                   </button>
                 ))}
               </div>

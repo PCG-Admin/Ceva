@@ -3,13 +3,18 @@
  * Protects API endpoints from abuse and DDoS attacks
  */
 
-interface RateLimitConfig {
-  interval: number // Time window in milliseconds
-  uniqueTokenPerInterval: number // Max requests per interval
+export interface RateLimitConfig {
+  interval?: number // Time window in milliseconds
+  uniqueTokenPerInterval?: number // Max requests per interval
 }
 
 interface RateLimitStore {
   [key: string]: number[]
+}
+
+const DEFAULT_CONFIG: Required<RateLimitConfig> = {
+  interval: 60 * 1000,        // 1 minute
+  uniqueTokenPerInterval: 10, // 10 requests per minute
 }
 
 const rateLimitStore: RateLimitStore = {}
@@ -22,13 +27,13 @@ const rateLimitStore: RateLimitStore = {}
  */
 export function rateLimit(
   identifier: string,
-  config: RateLimitConfig = {
-    interval: 60 * 1000, // 1 minute
-    uniqueTokenPerInterval: 10, // 10 requests per minute
-  }
+  config?: RateLimitConfig
 ): boolean {
+  const interval = config?.interval ?? DEFAULT_CONFIG.interval
+  const uniqueTokenPerInterval = config?.uniqueTokenPerInterval ?? DEFAULT_CONFIG.uniqueTokenPerInterval
+
   const now = Date.now()
-  const windowStart = now - config.interval
+  const windowStart = now - interval
 
   // Initialize or get existing timestamps for this identifier
   if (!rateLimitStore[identifier]) {
@@ -41,7 +46,7 @@ export function rateLimit(
   )
 
   // Check if rate limit is exceeded
-  if (rateLimitStore[identifier].length >= config.uniqueTokenPerInterval) {
+  if (rateLimitStore[identifier].length >= uniqueTokenPerInterval) {
     return true // Rate limit exceeded
   }
 
@@ -55,7 +60,6 @@ export function rateLimit(
  * Get client identifier from request
  */
 export function getClientIdentifier(request: Request): string {
-  // Try to get IP from various headers
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
   const cfConnectingIp = request.headers.get('cf-connecting-ip')

@@ -19,7 +19,6 @@ export async function rateLimitMiddleware(
   const isLimited = rateLimit(identifier, config)
 
   if (isLimited) {
-    // Log rate limit violation
     await logApiViolation(
       'api.rate_limit_exceeded',
       request,
@@ -44,6 +43,7 @@ export async function rateLimitMiddleware(
 
 /**
  * SQL injection detection middleware
+ * Clones the request body so the original stream remains intact for the handler.
  */
 export async function sqlInjectionMiddleware(
   request: NextRequest
@@ -67,10 +67,12 @@ export async function sqlInjectionMiddleware(
       }
     }
 
-    // Check request body for POST/PUT/PATCH requests
+    // Check request body for POST/PUT/PATCH — clone first so the body stream
+    // is not consumed before the actual route handler reads it.
     if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
       try {
-        const body = await request.json()
+        const cloned = request.clone()
+        const body = await cloned.json()
         const bodyStr = JSON.stringify(body)
 
         if (detectSqlInjection(bodyStr)) {
@@ -99,6 +101,7 @@ export async function sqlInjectionMiddleware(
 
 /**
  * Request size validation middleware (prevent DOS)
+ * Clones the request body so the original stream remains intact for the handler.
  */
 export async function requestSizeMiddleware(
   request: NextRequest,
@@ -106,7 +109,8 @@ export async function requestSizeMiddleware(
 ): Promise<NextResponse | null> {
   if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
     try {
-      const body = await request.json()
+      const cloned = request.clone()
+      const body = await cloned.json()
 
       if (!validateRequestSize(body, maxSizeKB)) {
         await logSecurityViolation(
@@ -139,15 +143,12 @@ export async function securityMiddleware(
     maxRequestSizeKB?: number
   }
 ): Promise<NextResponse | null> {
-  // Rate limiting check
   const rateLimitResponse = await rateLimitMiddleware(request, config?.rateLimit)
   if (rateLimitResponse) return rateLimitResponse
 
-  // SQL injection check
   const sqlInjectionResponse = await sqlInjectionMiddleware(request)
   if (sqlInjectionResponse) return sqlInjectionResponse
 
-  // Request size check
   const requestSizeResponse = await requestSizeMiddleware(
     request,
     config?.maxRequestSizeKB
@@ -168,11 +169,9 @@ export function withSecurity<T>(
   }
 ) {
   return async (request: NextRequest, context?: T): Promise<NextResponse> => {
-    // Run security middleware
     const securityResponse = await securityMiddleware(request, config)
     if (securityResponse) return securityResponse
 
-    // Execute the actual handler
     try {
       return await handler(request, context)
     } catch (error) {

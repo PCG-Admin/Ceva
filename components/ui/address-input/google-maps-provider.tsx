@@ -21,17 +21,16 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey ?? "",
     libraries,
+    version: "weekly", // required for Places API (New) - AutocompleteSuggestion etc.
     preventGoogleFontsLoading: false,
   })
 
-  // Log any load errors for debugging
   if (loadError) {
     console.error("Google Maps failed to load:", loadError)
   }
 
   if (!apiKey) {
     console.warn("Google Maps API key not configured")
-    // Still render children but with isLoaded = false
     return (
       <GoogleMapsContext.Provider value={false}>
         {children}
@@ -39,7 +38,6 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
     )
   }
 
-  // Always render children, just pass the loading state
   return (
     <GoogleMapsContext.Provider value={isLoaded}>
       {children}
