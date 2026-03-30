@@ -32,6 +32,15 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       })
 
+      // Handle empty or non-JSON responses
+      const contentType = checkResponse.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Non-JSON response received:', await checkResponse.text())
+        setError('Server error: Invalid response format')
+        setLoading(false)
+        return
+      }
+
       const checkData = await checkResponse.json()
 
       // If locked out or other API error, show it
