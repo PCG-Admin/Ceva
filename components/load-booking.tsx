@@ -58,6 +58,8 @@ import type { Transporter, Horse, Trailer } from "@/types/transporter"
 import { AddressInput } from "@/components/ui/address-input"
 import type { LocationData, ClientAddress } from "@/types/location"
 import { LoadRouteMap } from "@/components/load-route-map"
+import { CitrusMilestoneTimeline } from "@/components/citrus-milestone-timeline"
+import type { CitrusLoadMilestones } from "@/types/citrus-milestones"
 
 interface Contract {
   id: string
@@ -116,6 +118,13 @@ interface Load {
   contract_id: string | null
   created_by: string
   created_at: string
+  // Milestone tracking dates
+  date_loaded: string | null
+  date_arrived_border_sa: string | null
+  date_johannesburg: string | null
+  date_harrismith: string | null
+  date_durban_arrival: string | null
+  date_offloaded: string | null
   // Joined relations
   supplier?: { company_name: string; trading_name: string | null } | null
   horse?: { registration_number: string; make: string | null; model: string | null } | null
@@ -155,6 +164,12 @@ export function LoadBooking() {
       .from("ceva_loads")
       .select(`
         *,
+        date_loaded,
+        date_arrived_border_sa,
+        date_johannesburg,
+        date_harrismith,
+        date_durban_arrival,
+        date_offloaded,
         supplier:ceva_transporters!supplier_id(company_name, trading_name),
         horse:ceva_horses!horse_id(registration_number, make, model),
         trailer:ceva_trailers!trailer_id(registration_number, trailer_type),
@@ -448,6 +463,7 @@ function LoadCard({
 }) {
   const [deleting, setDeleting] = useState(false)
   const [showRoute, setShowRoute] = useState(false)
+  const [showTracking, setShowTracking] = useState(false)
   return (
     <div className="rounded-lg border border-border bg-card p-4 hover:bg-accent/5 transition-colors">
       <div className="flex items-start justify-between">
@@ -600,10 +616,37 @@ function LoadCard({
           {showRoute && (
             <LoadRouteMap origin={load.origin} destination={load.destination} />
           )}
+
+          {/* Load Tracking */}
+          {showTracking && (
+            <div className="mt-3">
+              <CitrusMilestoneTimeline
+                milestoneData={{
+                  date_loaded: load.date_loaded ? new Date(load.date_loaded) : null,
+                  date_arrived_border_sa: load.date_arrived_border_sa ? new Date(load.date_arrived_border_sa) : null,
+                  date_johannesburg: load.date_johannesburg ? new Date(load.date_johannesburg) : null,
+                  date_harrismith: load.date_harrismith ? new Date(load.date_harrismith) : null,
+                  date_durban_arrival: load.date_durban_arrival ? new Date(load.date_durban_arrival) : null,
+                  date_offloaded: load.date_offloaded ? new Date(load.date_offloaded) : null,
+                }}
+                loadNumber={load.order_number}
+                showProgress={true}
+                compact={false}
+              />
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex gap-2 ml-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowTracking(!showTracking)}
+            title={showTracking ? "Hide tracking" : "Show tracking"}
+          >
+            <Package className={`h-4 w-4 ${showTracking ? "text-primary" : ""}`} />
+          </Button>
           <Button
             variant="outline"
             size="icon"

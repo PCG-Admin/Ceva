@@ -1,18 +1,13 @@
 "use client"
 
 import { PortalLayout } from "@/components/portal-layout"
-import { Package, MapPin, FileText, Users, CalendarDays } from "lucide-react"
+import { Package, MapPin, FileText, Users } from "lucide-react"
 
 const navItems = [
   {
     icon: <Package className="h-5 w-5" />,
     label: "Load Booking",
     href: "/customer",
-  },
-  {
-    icon: <CalendarDays className="h-5 w-5" />,
-    label: "Dispatch Planning",
-    href: "/customer/planning",
   },
   {
     icon: <Users className="h-5 w-5" />,
