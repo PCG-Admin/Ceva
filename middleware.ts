@@ -118,6 +118,7 @@ export async function middleware(request: NextRequest) {
 
     // Define protected routes by role
     const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
+    const isReportsRoute = request.nextUrl.pathname.startsWith('/reports')
     const isTransporterRoute = request.nextUrl.pathname.startsWith('/transporter')
     const isCustomerRoute = request.nextUrl.pathname.startsWith('/customer')
     const isClientRoute = request.nextUrl.pathname.startsWith('/client')
@@ -131,8 +132,8 @@ export async function middleware(request: NextRequest) {
         url.pathname = '/client/dashboard'
         return NextResponse.redirect(url)
       }
-      // Prevent clients from accessing admin routes
-      if (isAdminRoute) {
+      // Prevent clients from accessing any routes except /client
+      if (isAdminRoute || isReportsRoute || isCustomerRoute || isTransporterRoute || isDriverRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/client/dashboard'
         return NextResponse.redirect(url)
@@ -161,8 +162,36 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
+    // Protect reports routes - only admin and dispatcher
+    if (isReportsRoute && !['admin', 'dispatcher'].includes(userRole || '')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // Protect customer routes - only admin and dispatcher
+    if (isCustomerRoute && !['admin', 'dispatcher'].includes(userRole || '')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // Protect transporter routes - only admin and dispatcher
+    if (isTransporterRoute && !['admin', 'dispatcher'].includes(userRole || '')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
     // Redirect non-drivers away from driver portal
     if (isDriverRoute && userRole !== 'driver') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // Redirect non-clients away from client portal
+    if (isClientRoute && userRole !== 'client') {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)
