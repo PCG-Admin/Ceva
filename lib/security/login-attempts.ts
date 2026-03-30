@@ -106,21 +106,28 @@ export function getAttemptCount(identifier: string): number {
 }
 
 /**
- * Clean up old entries periodically to prevent memory leaks
+ * Get all login attempts (for admin monitoring/reporting)
+ * Note: Data persists in memory until server restart
  */
-setInterval(() => {
+export function getAllAttempts(): Map<string, LoginAttempt> {
+  return new Map(loginAttempts)
+}
+
+/**
+ * Manual cleanup function - only call if needed
+ * This is NOT run automatically to preserve audit data
+ */
+export function cleanupExpiredLockouts(): number {
   const now = Date.now()
-  const expiredKeys: string[] = []
+  let cleaned = 0
 
   loginAttempts.forEach((attempt, key) => {
-    // Remove if lockout expired or last attempt was over 1 hour ago
-    if (
-      (attempt.lockedUntil && attempt.lockedUntil < now) ||
-      (now - attempt.lastAttempt > 60 * 60 * 1000)
-    ) {
-      expiredKeys.push(key)
+    // Only remove entries where lockout has expired (not just old attempts)
+    if (attempt.lockedUntil && attempt.lockedUntil < now) {
+      loginAttempts.delete(key)
+      cleaned++
     }
   })
 
-  expiredKeys.forEach(key => loginAttempts.delete(key))
-}, 5 * 60 * 1000) // Run cleanup every 5 minutes
+  return cleaned
+}
