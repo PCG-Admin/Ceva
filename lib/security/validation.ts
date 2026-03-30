@@ -59,11 +59,12 @@ export const passwordSchema = z
 /**
  * Validate phone number
  * Allow empty string or valid phone format
+ * Supports: +27123456789, 0123456789, or international formats
  */
 export const phoneSchema = z
   .string()
   .refine(
-    (val) => !val || val === '' || /^\+?[1-9]\d{1,14}$/.test(val),
+    (val) => !val || val === '' || /^\+?[0-9]\d{7,14}$/.test(val),
     'Invalid phone number format'
   )
   .optional()
