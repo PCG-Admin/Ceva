@@ -275,14 +275,28 @@ function AddClientDialog({
     notes: "",
   })
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
+
+  function friendlyError(raw: string | undefined): string {
+    if (!raw) return "Something went wrong. Please try again."
+    if (raw.includes("already registered") || raw.includes("already been registered") || raw.includes("unique") || raw.includes("duplicate"))
+      return "A client with this email already exists."
+    if (raw.includes("invalid") && raw.toLowerCase().includes("email"))
+      return "Please enter a valid email address."
+    if (raw.includes("password"))
+      return "There was an issue setting the account password. Please try again."
+    if (raw.includes("network") || raw.includes("fetch"))
+      return "Network error. Check your connection and try again."
+    return raw
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setError(null)
     setSaving(true)
 
     try {
-      // Use server action to create client with automatic user creation
       const result = await createClientWithUser({
         name: formData.name,
         email: formData.email,
@@ -294,25 +308,16 @@ function AddClientDialog({
 
       if (result.success) {
         toast({
-          title: "Client created successfully",
-          description: result.message || `Login credentials: ${formData.email} / CevaCitrus2026!`,
-          variant: "default",
+          title: "Client created",
+          description: `Login: ${formData.email} / CevaCitrus2026!`,
         })
         setFormData({ name: "", contact_number: "", email: "", pickup_addresses: [], delivery_addresses: [], notes: "" })
         onSuccess()
       } else {
-        toast({
-          title: "Error creating client",
-          description: result.error,
-          variant: "destructive",
-        })
+        setError(friendlyError(result.error))
       }
     } catch (err: any) {
-      toast({
-        title: "Error creating client",
-        description: err?.message ?? "Unexpected error. Please try again.",
-        variant: "destructive",
-      })
+      setError(friendlyError(err?.message))
     } finally {
       setSaving(false)
     }
@@ -377,6 +382,12 @@ function AddClientDialog({
               />
             </div>
           </div>
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 mb-4">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
