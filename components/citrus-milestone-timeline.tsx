@@ -4,10 +4,14 @@
  * CEVA Citrus TMS - Milestone Timeline Component
  * Visual timeline showing load progress through 6 checkpoints
  * Color coding per SOW: yellow (pending), green (completed), blue (delivered)
+ *
+ * CE2-T43: Supports manual milestone updates via editable prop
+ * CE2-T44: Colour-coded status indicators (yellow/green/blue)
  */
 
+import { useState } from 'react'
 import { format } from 'date-fns'
-import { CheckCircle, Circle, Truck } from 'lucide-react'
+import { CheckCircle, Circle, Truck, Pencil, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   type CitrusMilestone,
@@ -20,12 +24,29 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface CitrusMilestoneTimelineProps {
   milestoneData: CitrusLoadMilestones
   loadNumber?: string
   showProgress?: boolean
   compact?: boolean
+  /** Enable manual milestone updates (CE2-T43) */
+  editable?: boolean
+  /** Required when editable=true */
+  loadId?: string
+  /** Called after a successful update so the parent can refresh its data */
+  onMilestoneUpdated?: (field: keyof CitrusLoadMilestones, newDate: string | null) => void
 }
 
 export function CitrusMilestoneTimeline({
@@ -33,53 +54,170 @@ export function CitrusMilestoneTimeline({
   loadNumber,
   showProgress = true,
   compact = false,
+  editable = false,
+  loadId,
+  onMilestoneUpdated,
 }: CitrusMilestoneTimelineProps) {
   const milestones = buildMilestonesFromLoad(milestoneData)
   const progress = calculateLoadProgress(milestones)
+
+  const [editingMilestone, setEditingMilestone] = useState<CitrusMilestone | null>(null)
+  const [editDate, setEditDate] = useState<string>("")
+  const [editNote, setEditNote] = useState<string>("")
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  function openDialog(milestone: CitrusMilestone) {
+    // Default to today in YYYY-MM-DD
+    const today = new Date().toISOString().split("T")[0]
+    setEditDate(milestone.completedAt ? format(milestone.completedAt, "yyyy-MM-dd") : today)
+    setEditNote("")
+    setSaveError(null)
+    setEditingMilestone(milestone)
+  }
+
+  function closeDialog() {
+    if (!saving) setEditingMilestone(null)
+  }
+
+  async function handleSave() {
+    if (!editingMilestone || !loadId) return
+    setSaving(true)
+    setSaveError(null)
+
+    try {
+      const res = await fetch(`/api/loads/${loadId}/milestone`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          field: editingMilestone.dateField,
+          date: editDate || null,
+          note: editNote || undefined,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setSaveError(body.error ?? "Failed to save")
+        return
+      }
+
+      onMilestoneUpdated?.(editingMilestone.dateField, editDate || null)
+      setEditingMilestone(null)
+    } catch {
+      setSaveError("Network error — please try again")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (compact) {
     return <CompactTimeline milestones={milestones} progress={progress} />
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary" />
-              Load Tracking {loadNumber && `- ${loadNumber}`}
-            </CardTitle>
-            <CardDescription>
-              Citrus Transport: Nottingham/Bitebridge → K-Hold, Bayhead, Durban
-            </CardDescription>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" />
+                Load Tracking {loadNumber && `- ${loadNumber}`}
+              </CardTitle>
+              <CardDescription>
+                Citrus Transport: Nottingham/Bitebridge → K-Hold, Bayhead, Durban
+              </CardDescription>
+            </div>
+            {showProgress && (
+              <Badge variant={progress === 100 ? 'default' : 'secondary'} className="text-lg px-4 py-2">
+                {progress}% Complete
+              </Badge>
+            )}
           </div>
+        </CardHeader>
+        <CardContent>
           {showProgress && (
-            <Badge variant={progress === 100 ? 'default' : 'secondary'} className="text-lg px-4 py-2">
-              {progress}% Complete
-            </Badge>
+            <Progress value={progress} className="mb-6" />
           )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {showProgress && (
-          <Progress value={progress} className="mb-6" />
-        )}
-        <div className="space-y-4">
-          {milestones.map((milestone, index) => (
-            <MilestoneItem
-              key={milestone.id}
-              milestone={milestone}
-              isLast={index === milestones.length - 1}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          <div className="space-y-4">
+            {milestones.map((milestone, index) => (
+              <MilestoneItem
+                key={milestone.id}
+                milestone={milestone}
+                isLast={index === milestones.length - 1}
+                editable={editable && !!loadId}
+                onEdit={() => openDialog(milestone)}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Manual update dialog (CE2-T43) */}
+      <Dialog open={!!editingMilestone} onOpenChange={(open) => { if (!open) closeDialog() }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMilestone?.completedAt ? "Edit milestone date" : "Mark milestone reached"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingMilestone?.name} — {editingMilestone?.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="milestone-date">Date reached</Label>
+              <Input
+                id="milestone-date"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="milestone-note">Note <span className="text-muted-foreground">(optional)</span></Label>
+              <Input
+                id="milestone-note"
+                type="text"
+                placeholder="e.g. Confirmed by driver via WhatsApp"
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+              />
+            </div>
+            {saveError && (
+              <p className="text-sm text-destructive">{saveError}</p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={closeDialog} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !editDate}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
-function MilestoneItem({ milestone, isLast }: { milestone: CitrusMilestone; isLast: boolean }) {
+function MilestoneItem({
+  milestone,
+  isLast,
+  editable,
+  onEdit,
+}: {
+  milestone: CitrusMilestone
+  isLast: boolean
+  editable?: boolean
+  onEdit?: () => void
+}) {
   const isPending = milestone.status === 'pending'
   const colorClass = getMilestoneColor(milestone.status)
   const textColorClass = getMilestoneTextColor(milestone.status)
@@ -121,11 +259,24 @@ function MilestoneItem({ milestone, isLast }: { milestone: CitrusMilestone; isLa
               {milestone.description}
             </p>
           </div>
-          {milestone.completedAt && (
-            <Badge variant="outline" className="ml-4">
-              {format(milestone.completedAt, 'dd MMM yyyy HH:mm')}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2 ml-4">
+            {milestone.completedAt && (
+              <Badge variant="outline">
+                {format(milestone.completedAt, 'dd MMM yyyy')}
+              </Badge>
+            )}
+            {editable && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                title={isPending ? "Mark as reached" : "Edit date"}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -149,7 +300,7 @@ function CompactTimeline({ milestones, progress }: { milestones: CitrusMilestone
             <div
               key={milestone.id}
               className="flex flex-col items-center gap-1"
-              title={`${milestone.name}${milestone.completedAt ? ` - ${format(milestone.completedAt, 'dd MMM HH:mm')}` : ''}`}
+              title={`${milestone.name}${milestone.completedAt ? ` - ${format(milestone.completedAt, 'dd MMM yyyy')}` : ''}`}
             >
               <div
                 className={cn(

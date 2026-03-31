@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,6 +52,7 @@ import {
   ExternalLink,
   Map,
   Copy,
+  RefreshCw,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Transporter, Horse, Trailer } from "@/types/transporter"
@@ -418,6 +419,11 @@ export function LoadBooking() {
                   onEdit={setEditingLoad}
                   onStatusChange={handleStatusChange}
                   onDuplicate={handleDuplicate}
+                  onMilestoneUpdated={(loadId, field, newDate) => {
+                    setLoads((prev) =>
+                      prev.map((l) => l.id === loadId ? { ...l, [field]: newDate } : l)
+                    )
+                  }}
                 />
               ))}
             </div>
@@ -454,12 +460,14 @@ function LoadCard({
   onEdit,
   onStatusChange,
   onDuplicate,
+  onMilestoneUpdated,
 }: {
   load: Load
   onDelete: (id: string) => void
   onEdit: (load: Load) => void
   onStatusChange: (id: string, status: Load["status"]) => void
   onDuplicate: (load: Load) => void
+  onMilestoneUpdated: (loadId: string, field: string, newDate: string | null) => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [showRoute, setShowRoute] = useState(false)
@@ -632,6 +640,9 @@ function LoadCard({
                 loadNumber={load.order_number}
                 showProgress={true}
                 compact={false}
+                editable={true}
+                loadId={load.id}
+                onMilestoneUpdated={(field, newDate) => onMilestoneUpdated(load.id, field, newDate)}
               />
             </div>
           )}
@@ -960,7 +971,7 @@ function LoadFormFields({
             id="controller"
             name="controller"
             placeholder="e.g., Mahesh"
-            defaultValue={defaults?.controller ?? ""}
+            defaultValue={defaults?.controller ?? "Mahesh"}
           />
           <p className="text-xs text-muted-foreground">CEVA controller assigned to this load</p>
         </div>
@@ -1215,9 +1226,13 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const [weight, setWeight] = useState("")
   const [material, setMaterial] = useState("citrus") // SOW: Default to Citrus for CEVA module
   const [origin, setOriginAddress] = useState("")
-  const [destination, setDestinationAddress] = useState("")
+  // SOW default destination: K-Hold cold store, Bayhead, Durban (CE2-T39)
+  const [destination, setDestinationAddress] = useState("K-Hold, Bayhead, Durban")
   const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lng: number } | null>({
+    lat: -29.9769,
+    lng: 30.9808,
+  })
   const [transporters, setTransporters] = useState<Transporter[]>([])
   const [horses, setHorses] = useState<Horse[]>([])
   const [trailers, setTrailers] = useState<Trailer[]>([])
@@ -1228,6 +1243,7 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const [clientName, setClientName] = useState("")
   const [clientContact, setClientContact] = useState("")
   const [loadingData, setLoadingData] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const handleOriginChange = (location: LocationData) => {
     setOriginAddress(location.address)
@@ -1239,12 +1255,12 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
     setDestinationCoords(location.coordinates ?? null)
   }
 
-  const supabase = createClient()
+  const supabase = useRef(createClient()).current
 
-  // Fetch transporters, horses, trailers, contracts, and clients
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoadingData(true)
+  const fetchData = useCallback(async () => {
+    setLoadingData(true)
+    setFetchError(null)
+    try {
       const [transportersRes, horsesRes, trailersRes, driversRes, contractsRes, clientsRes] = await Promise.all([
         supabase.from("ceva_transporters").select("*").neq("status", "suspended").order("company_name"),
         supabase.from("ceva_horses").select("*").eq("status", "available").order("registration_number"),
@@ -1254,16 +1270,28 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         supabase.from("ceva_clients").select("id, name, contact_number, pickup_addresses, delivery_addresses").order("name"),
       ])
 
-      if (transportersRes.data) setTransporters(transportersRes.data)
-      if (horsesRes.data) setHorses(horsesRes.data)
-      if (trailersRes.data) setTrailers(trailersRes.data)
-      if (driversRes.data) setDrivers(driversRes.data)
-      if (contractsRes.data) setContracts(contractsRes.data)
-      if (clientsRes.data) setClients(clientsRes.data)
+      const anyError = transportersRes.error || horsesRes.error || trailersRes.error ||
+        driversRes.error || contractsRes.error || clientsRes.error
+      if (anyError) {
+        setFetchError("Failed to load form data. Please try again.")
+      } else {
+        if (transportersRes.data) setTransporters(transportersRes.data)
+        if (horsesRes.data) setHorses(horsesRes.data)
+        if (trailersRes.data) setTrailers(trailersRes.data)
+        if (driversRes.data) setDrivers(driversRes.data)
+        if (contractsRes.data) setContracts(contractsRes.data)
+        if (clientsRes.data) setClients(clientsRes.data)
+      }
+    } catch {
+      setFetchError("Network error loading form data. Please try again.")
+    } finally {
       setLoadingData(false)
     }
-    fetchData()
   }, [supabase])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -1360,6 +1388,14 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
+      ) : fetchError ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-8">
+          <p className="text-sm text-destructive">{fetchError}</p>
+          <Button type="button" variant="outline" size="sm" onClick={fetchData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
       ) : (
         <LoadFormFields
           supplierId={supplierId}
@@ -1439,6 +1475,7 @@ function EditLoadForm({ load, onClose, onSuccess }: { load: Load; onClose: () =>
   const [clientName, setClientName] = useState(load.client || "")
   const [clientContact, setClientContact] = useState(load.client_contact || "")
   const [loadingData, setLoadingData] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const handleOriginChange = (location: LocationData) => {
     setOriginAddress(location.address)
@@ -1450,12 +1487,12 @@ function EditLoadForm({ load, onClose, onSuccess }: { load: Load; onClose: () =>
     setDestinationCoords(location.coordinates ?? null)
   }
 
-  const supabase = createClient()
+  const supabase = useRef(createClient()).current
 
-  // Fetch transporters, horses, trailers, contracts, and clients
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoadingData(true)
+  const fetchData = useCallback(async () => {
+    setLoadingData(true)
+    setFetchError(null)
+    try {
       const [transportersRes, horsesRes, trailersRes, driversRes, contractsRes, clientsRes] = await Promise.all([
         supabase.from("ceva_transporters").select("*").neq("status", "suspended").order("company_name"),
         supabase.from("ceva_horses").select("*").order("registration_number"),
@@ -1465,23 +1502,32 @@ function EditLoadForm({ load, onClose, onSuccess }: { load: Load; onClose: () =>
         supabase.from("ceva_clients").select("id, name, contact_number, pickup_addresses, delivery_addresses").order("name"),
       ])
 
-      if (transportersRes.data) setTransporters(transportersRes.data)
-      if (horsesRes.data) setHorses(horsesRes.data)
-      if (trailersRes.data) setTrailers(trailersRes.data)
-      if (driversRes.data) setDrivers(driversRes.data)
-      if (contractsRes.data) setContracts(contractsRes.data)
-      if (clientsRes.data) {
-        setClients(clientsRes.data)
-        // Try to find the matching client by name
-        const matchingClient = clientsRes.data.find(c => c.name === load.client)
-        if (matchingClient) {
-          setSelectedClientId(matchingClient.id)
+      const anyError = transportersRes.error || horsesRes.error || trailersRes.error ||
+        driversRes.error || contractsRes.error || clientsRes.error
+      if (anyError) {
+        setFetchError("Failed to load form data. Please try again.")
+      } else {
+        if (transportersRes.data) setTransporters(transportersRes.data)
+        if (horsesRes.data) setHorses(horsesRes.data)
+        if (trailersRes.data) setTrailers(trailersRes.data)
+        if (driversRes.data) setDrivers(driversRes.data)
+        if (contractsRes.data) setContracts(contractsRes.data)
+        if (clientsRes.data) {
+          setClients(clientsRes.data)
+          const matchingClient = clientsRes.data.find(c => c.name === load.client)
+          if (matchingClient) setSelectedClientId(matchingClient.id)
         }
       }
+    } catch {
+      setFetchError("Network error loading form data. Please try again.")
+    } finally {
       setLoadingData(false)
     }
-    fetchData()
   }, [supabase, load.client])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -1595,6 +1641,14 @@ function EditLoadForm({ load, onClose, onSuccess }: { load: Load; onClose: () =>
       {loadingData ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : fetchError ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-8">
+          <p className="text-sm text-destructive">{fetchError}</p>
+          <Button type="button" variant="outline" size="sm" onClick={fetchData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
         </div>
       ) : (
         <LoadFormFields

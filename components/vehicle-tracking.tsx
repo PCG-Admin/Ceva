@@ -28,6 +28,7 @@ import { VehicleMap } from "@/components/vehicle-map"
 import { TripRoutePolyline } from "@/components/trip-route-polyline"
 import { createClient } from "@/lib/supabase/client"
 import type { TrackedVehicle, TrackedVehicleStatus } from "@/types/ctrack"
+import { CitrusMilestoneTimeline } from "@/components/citrus-milestone-timeline"
 
 interface VehicleLoad {
   id: string
@@ -41,6 +42,12 @@ interface VehicleLoad {
   material: string
   rate: number
   status: string
+  date_loaded: string | null
+  date_arrived_border_sa: string | null
+  date_johannesburg: string | null
+  date_harrismith: string | null
+  date_durban_arrival: string | null
+  date_offloaded: string | null
 }
 
 interface GeofenceEvent {
@@ -66,6 +73,7 @@ export function VehicleTracking() {
   const [directionsLoading, setDirectionsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("map")
   const [loadGeofenceEvents, setLoadGeofenceEvents] = useState<Map<string, GeofenceEvent[]>>(new Map())
+  const [expandedLoadTracking, setExpandedLoadTracking] = useState<string | null>(null)
 
   const [selectedHorseId, setSelectedHorseId] = useState<string | null>(null)
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
@@ -115,7 +123,7 @@ export function VehicleTracking() {
 
     const { data: loads } = await supabase
       .from("ceva_loads")
-      .select("id, order_number, client, origin, destination, pickup_date, delivery_date, weight, material, rate, status")
+      .select("id, order_number, client, origin, destination, pickup_date, delivery_date, weight, material, rate, status, date_loaded, date_arrived_border_sa, date_johannesburg, date_harrismith, date_durban_arrival, date_offloaded")
       .eq("horse_id", horse.id)
       .in("status", ["assigned", "in-transit", "pending"])
       .order("pickup_date", { ascending: true })
@@ -545,68 +553,111 @@ export function VehicleTracking() {
                         </div>
                       ) : (
                         vehicleLoads.map((load) => (
-                          <button
-                            key={load.id}
-                            onClick={() => handleSelectLoad(load)}
-                            className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                          <div key={load.id} className="space-y-2">
+                            <div className={`rounded-lg border p-3 ${
                               selectedLoad?.id === load.id
                                 ? "border-primary bg-primary/5"
-                                : "border-border hover:bg-accent"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Package className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-semibold text-foreground">{load.order_number}</span>
+                                : "border-border"
+                            }`}>
+                              <div className="flex items-start justify-between">
+                                <button
+                                  onClick={() => handleSelectLoad(load)}
+                                  className="flex-1 text-left"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Package className="h-4 w-4 text-muted-foreground" />
+                                      <span className="font-semibold text-foreground">{load.order_number}</span>
+                                    </div>
+                                    <Badge
+                                      className={
+                                        load.status === "in-transit"
+                                          ? "bg-accent text-accent-foreground"
+                                          : load.status === "assigned"
+                                          ? "bg-primary text-primary-foreground"
+                                          : "bg-secondary text-secondary-foreground"
+                                      }
+                                    >
+                                      {load.status}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mt-1">{load.client}</p>
+                                  <div className="mt-2 space-y-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <MapPin className="h-3 w-3 text-accent shrink-0" />
+                                      <span className="text-xs text-foreground truncate">{load.origin}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <MapPin className="h-3 w-3 text-destructive shrink-0" />
+                                      <span className="text-xs text-foreground truncate">{load.destination}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
+                                    <span>{new Date(load.pickup_date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" })}</span>
+                                    <span>{load.material}</span>
+                                    {load.weight && <span>{load.weight} t</span>}
+                                  </div>
+                                  {selectedLoad?.id === load.id && directions?.routes[0]?.legs[0] && (
+                                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border">
+                                      <span className="text-xs font-medium text-primary flex items-center gap-1">
+                                        <Route className="h-3 w-3" />
+                                        {directions.routes[0].legs[0].distance?.text}
+                                      </span>
+                                      <span className="text-xs font-medium text-primary flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {directions.routes[0].legs[0].duration?.text}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {selectedLoad?.id === load.id && directionsLoading && (
+                                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border">
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      <span className="text-xs text-muted-foreground">Calculating route...</span>
+                                    </div>
+                                  )}
+                                  <GeofenceTimeline events={loadGeofenceEvents.get(load.id) ?? []} loading={false} />
+                                </button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setExpandedLoadTracking(expandedLoadTracking === load.id ? null : load.id)
+                                  }}
+                                  className="ml-2"
+                                  title={expandedLoadTracking === load.id ? "Hide tracking" : "Show tracking"}
+                                >
+                                  <Package className={`h-4 w-4 ${expandedLoadTracking === load.id ? "text-primary" : ""}`} />
+                                </Button>
                               </div>
-                              <Badge
-                                className={
-                                  load.status === "in-transit"
-                                    ? "bg-accent text-accent-foreground"
-                                    : load.status === "assigned"
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-secondary text-secondary-foreground"
-                                }
-                              >
-                                {load.status}
-                              </Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1">{load.client}</p>
-                            <div className="mt-2 space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <MapPin className="h-3 w-3 text-accent shrink-0" />
-                                <span className="text-xs text-foreground truncate">{load.origin}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <MapPin className="h-3 w-3 text-destructive shrink-0" />
-                                <span className="text-xs text-foreground truncate">{load.destination}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
-                              <span>{new Date(load.pickup_date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" })}</span>
-                              <span>{load.material}</span>
-                              {load.weight && <span>{load.weight} t</span>}
-                            </div>
-                            {selectedLoad?.id === load.id && directions?.routes[0]?.legs[0] && (
-                              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border">
-                                <span className="text-xs font-medium text-primary flex items-center gap-1">
-                                  <Route className="h-3 w-3" />
-                                  {directions.routes[0].legs[0].distance?.text}
-                                </span>
-                                <span className="text-xs font-medium text-primary flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {directions.routes[0].legs[0].duration?.text}
-                                </span>
+                            {expandedLoadTracking === load.id && (
+                              <div className="pl-3">
+                                <CitrusMilestoneTimeline
+                                  milestoneData={{
+                                    date_loaded: load.date_loaded ? new Date(load.date_loaded) : null,
+                                    date_arrived_border_sa: load.date_arrived_border_sa ? new Date(load.date_arrived_border_sa) : null,
+                                    date_johannesburg: load.date_johannesburg ? new Date(load.date_johannesburg) : null,
+                                    date_harrismith: load.date_harrismith ? new Date(load.date_harrismith) : null,
+                                    date_durban_arrival: load.date_durban_arrival ? new Date(load.date_durban_arrival) : null,
+                                    date_offloaded: load.date_offloaded ? new Date(load.date_offloaded) : null,
+                                  }}
+                                  loadNumber={load.order_number}
+                                  showProgress={true}
+                                  compact={false}
+                                  editable={true}
+                                  loadId={load.id}
+                                  onMilestoneUpdated={(field, newDate) => {
+                                    setVehicleLoads((prev) =>
+                                      prev.map((l) =>
+                                        l.id === load.id ? { ...l, [field]: newDate } : l
+                                      )
+                                    )
+                                  }}
+                                />
                               </div>
                             )}
-                            {selectedLoad?.id === load.id && directionsLoading && (
-                              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                <span className="text-xs text-muted-foreground">Calculating route...</span>
-                              </div>
-                            )}
-                            <GeofenceTimeline events={loadGeofenceEvents.get(load.id) ?? []} loading={false} />
-                          </button>
+                          </div>
                         ))
                       )}
                     </CardContent>

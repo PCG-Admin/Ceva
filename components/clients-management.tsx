@@ -281,32 +281,41 @@ function AddClientDialog({
     e.preventDefault()
     setSaving(true)
 
-    // Use server action to create client with automatic user creation
-    const result = await createClientWithUser({
-      name: formData.name,
-      email: formData.email,
-      contact_number: formData.contact_number,
-      pickup_addresses: formData.pickup_addresses.filter(a => a.address),
-      delivery_addresses: formData.delivery_addresses.filter(a => a.address),
-      notes: formData.notes,
-    })
-
-    if (result.success) {
-      toast({
-        title: "Client created successfully",
-        description: result.message || `Login credentials: ${formData.email} / CevaCitrus2026!`,
-        variant: "default",
+    try {
+      // Use server action to create client with automatic user creation
+      const result = await createClientWithUser({
+        name: formData.name,
+        email: formData.email,
+        contact_number: formData.contact_number,
+        pickup_addresses: formData.pickup_addresses.filter(a => a.address),
+        delivery_addresses: formData.delivery_addresses.filter(a => a.address),
+        notes: formData.notes,
       })
-      setFormData({ name: "", contact_number: "", email: "", pickup_addresses: [], delivery_addresses: [], notes: "" })
-      onSuccess()
-    } else {
+
+      if (result.success) {
+        toast({
+          title: "Client created successfully",
+          description: result.message || `Login credentials: ${formData.email} / CevaCitrus2026!`,
+          variant: "default",
+        })
+        setFormData({ name: "", contact_number: "", email: "", pickup_addresses: [], delivery_addresses: [], notes: "" })
+        onSuccess()
+      } else {
+        toast({
+          title: "Error creating client",
+          description: result.error,
+          variant: "destructive",
+        })
+      }
+    } catch (err: any) {
       toast({
         title: "Error creating client",
-        description: result.error,
+        description: err?.message ?? "Unexpected error. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   return (
@@ -337,9 +346,10 @@ function AddClientDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>Email *</Label>
               <Input
                 type="email"
+                required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="client@example.com"
@@ -460,9 +470,10 @@ function EditClientDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>Email *</Label>
               <Input
                 type="email"
+                required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="client@example.com"
