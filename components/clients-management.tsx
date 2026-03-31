@@ -19,7 +19,7 @@ import { Plus, Search, Users, Edit, Trash2, Phone, Mail, CheckCircle2, AlertCirc
 import { AddressInput } from "@/components/ui/address-input"
 import { GoogleMapsProvider } from "@/components/ui/address-input/google-maps-provider"
 import type { ClientAddress } from "@/types/location"
-import { createClientWithUser, updateClient } from "@/app/actions/create-client-user"
+import { createClientWithUser, updateClient, deleteClientWithUser } from "@/app/actions/create-client-user"
 import { useToast } from "@/hooks/use-toast"
 
 interface Client {
@@ -27,6 +27,7 @@ interface Client {
   name: string
   contact_number: string | null
   email: string | null
+  user_id: string | null
   pickup_addresses: ClientAddress[]
   delivery_addresses: ClientAddress[]
   notes: string | null
@@ -40,6 +41,7 @@ export function ClientsManagement() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const { toast } = useToast()
 
   const supabase = createClient()
 
@@ -51,7 +53,7 @@ export function ClientsManagement() {
     setLoading(true)
     const { data, error } = await supabase
       .from("ceva_clients")
-      .select("*")
+      .select("*, user_id")
       .order("name", { ascending: true })
 
     if (error) {
@@ -63,10 +65,21 @@ export function ClientsManagement() {
   }
 
   async function handleDelete(id: string) {
-    const { error } = await supabase.from("ceva_clients").delete().eq("id", id)
-    if (error) {
-      console.error("Error deleting client:", error)
+    const result = await deleteClientWithUser(id)
+    if (!result.success) {
+      toast({
+        title: "Error deleting client",
+        description: result.error,
+        variant: "destructive",
+      })
     } else {
+      if (result.warning) {
+        toast({
+          title: "Client deleted",
+          description: result.warning,
+          variant: "default",
+        })
+      }
       fetchClients()
     }
   }

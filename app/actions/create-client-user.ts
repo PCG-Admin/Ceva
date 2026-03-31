@@ -107,6 +107,55 @@ export async function createClientWithUser(data: {
 }
 
 /**
+ * Deletes a client and their auth user account
+ */
+export async function deleteClientWithUser(clientId: string) {
+  const supabase = await createClient()
+  const supabaseAdmin = createAdminClient()
+
+  try {
+    // Fetch the client to get the linked auth user_id
+    const { data: client, error: fetchErr } = await supabase
+      .from("ceva_clients")
+      .select("id, user_id, name")
+      .eq("id", clientId)
+      .single()
+
+    if (fetchErr || !client) {
+      return { success: false, error: "Client not found." }
+    }
+
+    // Delete the client record first (user_id FK is SET NULL on auth user delete,
+    // but we want the client row gone too)
+    const { error: deleteClientErr } = await supabase
+      .from("ceva_clients")
+      .delete()
+      .eq("id", clientId)
+
+    if (deleteClientErr) {
+      return { success: false, error: `Failed to delete client: ${deleteClientErr.message}` }
+    }
+
+    // If there is a linked auth user, delete them too
+    if (client.user_id) {
+      const { error: deleteUserErr } = await supabaseAdmin.auth.admin.deleteUser(client.user_id)
+      if (deleteUserErr) {
+        // Client record is already gone — log but don't fail the whole operation
+        console.error("Client deleted but auth user removal failed:", deleteUserErr.message)
+        return {
+          success: true,
+          warning: "Client deleted, but the portal login account could not be removed. Please remove it manually in Supabase.",
+        }
+      }
+    }
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: `Unexpected error: ${err.message}` }
+  }
+}
+
+/**
  * Updates an existing client
  */
 export async function updateClient(

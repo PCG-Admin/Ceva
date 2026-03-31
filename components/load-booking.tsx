@@ -55,6 +55,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 import type { Transporter, Horse, Trailer } from "@/types/transporter"
 import { AddressInput } from "@/components/ui/address-input"
 import type { LocationData, ClientAddress } from "@/types/location"
@@ -156,6 +157,7 @@ export function LoadBooking() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingLoad, setEditingLoad] = useState<Load | null>(null)
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   const supabase = createClient()
 
@@ -181,7 +183,7 @@ export function LoadBooking() {
       .order("created_at", { ascending: false })
 
     if (error) {
-      console.error("Error fetching loads:", error)
+      toast({ title: "Failed to load data", description: error.message, variant: "destructive" })
     } else {
       setLoads(data || [])
 
@@ -228,7 +230,7 @@ export function LoadBooking() {
 
     const { error } = await supabase.from("ceva_loads").delete().eq("id", id)
     if (error) {
-      console.error("Error deleting load:", error)
+      toast({ title: "Failed to delete load", description: error.message, variant: "destructive" })
       return
     }
     fetchLoads()
@@ -241,7 +243,7 @@ export function LoadBooking() {
       .eq("id", id)
 
     if (error) {
-      console.error("Error updating load status:", error)
+      toast({ title: "Failed to update status", description: error.message, variant: "destructive" })
       return
     }
 
@@ -288,7 +290,7 @@ export function LoadBooking() {
     })
 
     if (error) {
-      console.error("Error duplicating load:", error)
+      toast({ title: "Failed to duplicate load", description: error.message, variant: "destructive" })
       return
     }
     fetchLoads()
@@ -1131,6 +1133,7 @@ function LoadFormFields({
                 {filteredHorses.map((h) => (
                   <SelectItem key={h.id} value={h.id}>
                     {h.registration_number}{h.make ? ` - ${h.make}` : ''}{h.model ? ` ${h.model}` : ''}
+                    {h.status === "in_use" ? " (In Use)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1146,6 +1149,7 @@ function LoadFormFields({
                 {filteredTrailers.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.registration_number} - {t.trailer_type}
+                    {t.status === "in_use" ? " (In Use)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1164,6 +1168,7 @@ function LoadFormFields({
                   .map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.registration_number} - {t.trailer_type}
+                      {t.status === "in_use" ? " (In Use)" : ""}
                     </SelectItem>
                   ))}
               </SelectContent>
@@ -1263,8 +1268,8 @@ function CreateLoadForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
     try {
       const [transportersRes, horsesRes, trailersRes, driversRes, contractsRes, clientsRes] = await Promise.all([
         supabase.from("ceva_transporters").select("*").neq("status", "suspended").order("company_name"),
-        supabase.from("ceva_horses").select("*").eq("status", "available").order("registration_number"),
-        supabase.from("ceva_trailers").select("*").eq("status", "available").order("registration_number"),
+        supabase.from("ceva_horses").select("*").not("status", "in", '("maintenance","inactive")').order("registration_number"),
+        supabase.from("ceva_trailers").select("*").not("status", "in", '("maintenance","inactive")').order("registration_number"),
         supabase.from("ceva_drivers").select("id, first_name, last_name, transporter_id, status").eq("status", "active").order("first_name"),
         supabase.from("ceva_contracts").select("id, contract_name, weight_tons").order("contract_name"),
         supabase.from("ceva_clients").select("id, name, contact_number, pickup_addresses, delivery_addresses").order("name"),
