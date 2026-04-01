@@ -42,14 +42,14 @@ import {
 const PAGE_SIZE = 25
 
 const TABLE_ICONS: Record<AuditTableName, React.ReactNode> = {
-  loads: <Package className="h-4 w-4" />,
-  transporters: <Building2 className="h-4 w-4" />,
-  horses: <Truck className="h-4 w-4" />,
-  trailers: <Container className="h-4 w-4" />,
-  drivers: <User className="h-4 w-4" />,
-  load_geofence_events: <MapPin className="h-4 w-4" />,
-  vehicle_trips: <Route className="h-4 w-4" />,
-  transporter_documents: <FileText className="h-4 w-4" />,
+  ceva_loads: <Package className="h-4 w-4" />,
+  ceva_transporters: <Building2 className="h-4 w-4" />,
+  ceva_horses: <Truck className="h-4 w-4" />,
+  ceva_trailers: <Container className="h-4 w-4" />,
+  ceva_drivers: <User className="h-4 w-4" />,
+  ceva_load_geofence_events: <MapPin className="h-4 w-4" />,
+  ceva_vehicle_trips: <Route className="h-4 w-4" />,
+  ceva_transporter_documents: <FileText className="h-4 w-4" />,
 }
 
 const ACTION_ICONS: Record<AuditAction, React.ReactNode> = {
@@ -79,14 +79,14 @@ function getRecordIdentifier(log: AuditLog): string {
 
 function describeAuditEvent(log: AuditLog): string {
   const entityLabels: Record<string, string> = {
-    loads: "Load",
-    transporters: "Transporter",
-    horses: "Horse",
-    trailers: "Trailer",
-    drivers: "Driver",
-    load_geofence_events: "Geofence event",
-    vehicle_trips: "Vehicle trip",
-    transporter_documents: "Document",
+    ceva_loads: "Load",
+    ceva_transporters: "Transporter",
+    ceva_horses: "Horse",
+    ceva_trailers: "Trailer",
+    ceva_drivers: "Driver",
+    ceva_load_geofence_events: "Geofence event",
+    ceva_vehicle_trips: "Vehicle trip",
+    ceva_transporter_documents: "Document",
   }
 
   const entity = entityLabels[log.table_name] || log.table_name

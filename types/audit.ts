@@ -1,14 +1,14 @@
 export type AuditAction = "INSERT" | "UPDATE" | "DELETE"
 
 export type AuditTableName =
-  | "loads"
-  | "transporters"
-  | "horses"
-  | "trailers"
-  | "drivers"
-  | "load_geofence_events"
-  | "vehicle_trips"
-  | "transporter_documents"
+  | "ceva_loads"
+  | "ceva_transporters"
+  | "ceva_horses"
+  | "ceva_trailers"
+  | "ceva_drivers"
+  | "ceva_load_geofence_events"
+  | "ceva_vehicle_trips"
+  | "ceva_transporter_documents"
 
 export interface AuditLog {
   id: number
@@ -23,14 +23,14 @@ export interface AuditLog {
 }
 
 export const AUDIT_TABLE_LABELS: Record<AuditTableName, string> = {
-  loads: "Loads",
-  transporters: "Transporters",
-  horses: "Horses (Trucks)",
-  trailers: "Trailers",
-  drivers: "Drivers",
-  load_geofence_events: "Geofence Events",
-  vehicle_trips: "Vehicle Trips",
-  transporter_documents: "Transporter Documents",
+  ceva_loads: "Loads",
+  ceva_transporters: "Transporters",
+  ceva_horses: "Horses (Trucks)",
+  ceva_trailers: "Trailers",
+  ceva_drivers: "Drivers",
+  ceva_load_geofence_events: "Geofence Events",
+  ceva_vehicle_trips: "Vehicle Trips",
+  ceva_transporter_documents: "Transporter Documents",
 }
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
